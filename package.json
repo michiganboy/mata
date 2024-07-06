@@ -1,0 +1,33 @@
+{
+  "name": "mata",
+  "version": "1.0.0",
+  "description": "Automated accessibility testing tool. Features multi-site support, environment switching, custom test paths, authentication handling, configurable rulesets, and HTML reporting. Ideal for CI/CD integration and regular accessibility compliance checks.",
+  "main": "index.js",
+  "scripts": {
+    "test": ""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/michiganboy/mata.git"
+  },
+  "keywords": [
+    "Accessibility",
+    "Test",
+    "Automation"
+  ],
+  "author": "James Hartley",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/michiganboy/mata/issues"
+  },
+  "homepage": "https://github.com/michiganboy/mata#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.45.1",
+    "@types/node": "^20.14.10",
+    "axe-core": "^4.9.1",
+    "axe-html-reporter": "^2.2.3",
+    "axe-playwright": "^2.0.1",
+    "csv-parser": "^3.0.0",
+    "dotenv": "^16.4.5"
+  }
+}
