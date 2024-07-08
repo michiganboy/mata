@@ -130,50 +130,50 @@ Ensure that the CSV file names in the `tests/data/` directory match those specif
 
 1. Test all sites in the default QA environment:
    ```
-   npm, run test
+   npm run test
    ```
 
 2. Test in a specific environment:
    ```
-   npm, run test -- --env=staging
+   npm run test -- --env=staging
    ```
    or
    ```
-   npm, run test -- --env=prod
+   npm run test -- --env=prod
    ```
 
 3. Test a specific site in a specific environment:
    ```
-   npm, run test -- --site=Site1 --env=staging
+   npm run test -- --site=Site1 --env=staging
    ```
 
 4. Bypass login for all sites in a specific environment:
    ```
-   npm, run test -- --env=prod --bypass-login
+   npm run test -- --env=prod --bypass-login
    ```
 
 5. Bypass login for specific sites in a specific environment:
    ```
-   npm, run test -- --env=staging --bypass-login=Site1 --bypass-login=Site2
+   npm run test -- --env=staging --bypass-login=Site1 --bypass-login=Site2
    ```
 
 6. Test a single page for a specific site:
    ```
-   npm, run test -- --site=Site1 --env=prod --path=/about
+   npm run test -- --site=Site1 --env=prod --path=/about
    ```
 
    This will test only the '/about' page for Site1 in the production environment.
 
 7. Test a single page for a specific site in QA (default environment):
    ```
-   npm, run test -- --site=Site1 --path=/contact
+   npm run test -- --site=Site1 --path=/contact
    ```
 
    This will test only the '/contact' page for Site1 in the QA environment.
 
 8. Test with specific axe-core rulesets:
    ```
-   npm, run test -- --rulesets=wcag2a,wcag2aa,section508
+   npm run test -- --rulesets=wcag2a,wcag2aa,section508
    ```
 
    By default, the tests use the following rulesets:
@@ -194,7 +194,7 @@ Ensure that the CSV file names in the `tests/data/` directory match those specif
 
    You can combine this with other flags:
    ```
-   npm, run test -- --site=Site1 --env=staging --rulesets=wcag2aa,best-practice
+   npm run test -- --site=Site1 --env=staging --rulesets=wcag2aa,best-practice
    ```
 
 Notes:
