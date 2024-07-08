@@ -48,11 +48,24 @@ export function generateAccessibilityReport(allResults: EnhancedAxeResults[]): n
     });
   });
 
+  const customReportHTML = generateCustomReport(consolidatedResult);
+
+  const reportsDir = path.join(process.cwd(), 'accessibility-reports');
+  if (!fs.existsSync(reportsDir)) {
+    fs.mkdirSync(reportsDir);
+  }
+
+  const reportPath = path.join(reportsDir, 'consolidated-multi-site-accessibility-report.html');
+  fs.writeFileSync(reportPath, customReportHTML);
+
+  console.log(`Consolidated report saved at ${reportPath}`);
+
   const totalViolations = Object.values(consolidatedResult).reduce((sum, result) => 
     sum + result.violations.length, 0
   );
-
-  console.log(`Total violations calculated: ${totalViolations}`);
+  if (totalViolations > 0) {
+    console.warn(`Total accessibility violations found: ${totalViolations}. Check the consolidated report for details.`);
+  }
 
   return totalViolations;
 }
