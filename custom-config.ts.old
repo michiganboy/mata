@@ -1,0 +1,23 @@
+import { defineConfig } from '@playwright/test';
+import { config as baseConfig } from './playwright.config';
+
+console.log('Custom config environment variables:');
+console.log('SITE:', process.env.SITE);
+console.log('BYPASS_LOGIN_ALL:', process.env.BYPASS_LOGIN_ALL);
+console.log('BYPASS_LOGIN_SITES:', process.env.BYPASS_LOGIN_SITES);
+console.log('PATH:', process.env.PATH);
+console.log('RULESETS:', process.env.RULESETS);
+
+const customConfig = defineConfig({
+  ...baseConfig,
+  use: {
+    ...baseConfig.use,
+    site: process.env.SITE,
+    bypassLoginAll: process.env.BYPASS_LOGIN_ALL === 'true',
+    bypassLoginSites: process.env.BYPASS_LOGIN_SITES ? process.env.BYPASS_LOGIN_SITES.split(',') : [],
+    path: process.env.PATH,
+    rulesets: process.env.RULESETS,
+  },
+});
+
+export default customConfig;

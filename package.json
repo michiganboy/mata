@@ -4,14 +4,7 @@
   "description": "Automated accessibility testing tool. Features multi-site support, environment switching, custom test paths, authentication handling, configurable rulesets, and HTML reporting. Ideal for CI/CD integration and regular accessibility compliance checks.",
   "main": "index.js",
   "scripts": {
-    "test": "playwright test",
-    "test:qa": "playwright test --env=qa",
-    "test:staging": "playwright test --env=staging",
-    "test:prod": "playwright test --env=prod",
-    "test:site": "playwright test --site",
-    "test:path": "playwright test --site --path",
-    "test:bypass-login": "playwright test --bypass-login",
-    "test:custom-rules": "playwright test --rulesets"
+    "test": "ts-node run-tests.ts"
   },
   "repository": {
     "type": "git",
@@ -34,7 +27,9 @@
     "@types/node": "^20.14.10",
     "axe-core": "^4.9.1",
     "axe-html-reporter": "^2.2.3",
+    "cross-env": "^7.0.3",
     "csv-parser": "^3.0.0",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "ts-node": "^10.9.2"
   }
 }
