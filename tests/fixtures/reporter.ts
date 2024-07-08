@@ -48,22 +48,11 @@ export function generateAccessibilityReport(allResults: EnhancedAxeResults[]): n
     });
   });
 
-  const customReportHTML = generateCustomReport(consolidatedResult);
-
-  const reportsDir = path.join(process.cwd(), 'accessibility-reports');
-  if (!fs.existsSync(reportsDir)) {
-    fs.mkdirSync(reportsDir);
-  }
-
-  const reportPath = path.join(reportsDir, 'consolidated-multi-site-accessibility-report.html');
-  fs.writeFileSync(reportPath, customReportHTML);
-
-  console.log(`Consolidated report saved at ${reportPath}`);
-
   const totalViolations = Object.values(consolidatedResult).reduce((sum, result) => 
-    sum + result.violations.reduce((siteSum, violation) => siteSum + violation.nodes.length, 0), 0
+    sum + result.violations.length, 0
   );
-  console.log(`Total violations calculated in reporter: ${totalViolations}`);
+
+  console.log(`Total violations calculated: ${totalViolations}`);
 
   return totalViolations;
 }
@@ -100,16 +89,13 @@ function generateCustomReport(results: { [siteName: string]: EnhancedResults }):
         <p>Generated on: ${new Date().toISOString()}</p>
   `;
 
-  let grandTotalViolations = 0;
-
   for (const [siteName, siteResults] of Object.entries(results)) {
     const baseDomain = new URL(siteResults.violations[0]?.pageUrl || '').hostname;
     const totalPages = new Set([
       ...siteResults.violations.map(v => v.pageUrl),
       ...siteResults.passes.map(p => p.pageUrl)
     ]).size;
-    const totalViolations = siteResults.violations.reduce((sum, violation) => sum + violation.nodes.length, 0);
-    grandTotalViolations += totalViolations;
+    const totalViolations = siteResults.violations.length;
     const totalPasses = siteResults.passes.length;
 
     html += `
@@ -183,7 +169,6 @@ function generateCustomReport(results: { [siteName: string]: EnhancedResults }):
   }
 
   html += `
-        <h2>Grand Total Violations: ${grandTotalViolations}</h2>
       </body>
     </html>
   `;

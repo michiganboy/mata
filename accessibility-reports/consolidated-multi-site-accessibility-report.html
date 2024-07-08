@@ -26,14 +26,14 @@
       </head>
       <body>
         <h1>Multi-Site Accessibility Audit Report</h1>
-        <p>Generated on: 2024-07-08T19:57:16.694Z</p>
+        <p>Generated on: 2024-07-08T21:51:58.403Z</p>
   
         <div class="site-banner">
           <h2>Site1 (www.saucedemo.com)</h2>
           <div class="site-stats">
             <span class="site-stat">Pages Scanned: 1</span>
-            <span class="site-stat">Total Violations: 24</span>
-            <span class="site-stat">Total Passes: 20</span>
+            <span class="site-stat">Total Violations: 3</span>
+            <span class="site-stat">Total Passes: 8</span>
           </div>
         </div>
         <h3>Violations</h3>
@@ -89,24 +89,6 @@
           <td>21</td>
         </tr>
       
-        <tr class="violation">
-          <td>Inventory</td>
-          <td>/inventory.html</td>
-          <td>select-name <a href="https://dequeuniversity.com/rules/axe/4.9/select-name?application=playwright" target="_blank" class="learn-more">Learn More</a></td>
-          <td>wcag2a, wcag412</td>
-          <td class="impact-critical">critical</td>
-          <td>Ensures select element has an accessible name</td>
-          <td><span class="element">select</span></td>
-          <td class="fix-suggestion">Fix any of the following:
-  Form element does not have an implicit (wrapped) <label>
-  Form element does not have an explicit <label>
-  aria-label attribute does not exist or is empty
-  aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty
-  Element has no title attribute
-  Element's default semantics were not overridden with role="none" or role="presentation"</td>
-          <td>1</td>
-        </tr>
-      
         </table>
         <h3>Passes</h3>
         <table>
@@ -117,69 +99,6 @@
             <th style="width: 40%;">Description</th>
           </tr>
     
-        <tr class="pass">
-          <td>Inventory</td>
-          <td>/inventory.html</td>
-          <td>aria-hidden-body</td>
-          <td>Ensures aria-hidden="true" is not present on the document body.</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Inventory</td>
-          <td>/inventory.html</td>
-          <td>aria-hidden-focus</td>
-          <td>Ensures aria-hidden elements are not focusable nor contain focusable elements</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Inventory</td>
-          <td>/inventory.html</td>
-          <td>avoid-inline-spacing</td>
-          <td>Ensure that text spacing set through style attributes can be adjusted with custom stylesheets</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Inventory</td>
-          <td>/inventory.html</td>
-          <td>button-name</td>
-          <td>Ensures buttons have discernible text</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Inventory</td>
-          <td>/inventory.html</td>
-          <td>document-title</td>
-          <td>Ensures each HTML document contains a non-empty <title> element</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Inventory</td>
-          <td>/inventory.html</td>
-          <td>form-field-multiple-labels</td>
-          <td>Ensures form field does not have multiple label elements</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Inventory</td>
-          <td>/inventory.html</td>
-          <td>html-has-lang</td>
-          <td>Ensures every HTML document has a lang attribute</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Inventory</td>
-          <td>/inventory.html</td>
-          <td>html-lang-valid</td>
-          <td>Ensures the lang attribute of the <html> element has a valid value</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Inventory</td>
-          <td>/inventory.html</td>
-          <td>image-alt</td>
-          <td>Ensures <img> elements have alternate text or a role of none or presentation</td>
-        </tr>
-      
         <tr class="pass">
           <td>Inventory</td>
           <td>/inventory.html</td>
@@ -218,36 +137,8 @@
         <tr class="pass">
           <td>Inventory</td>
           <td>/inventory.html</td>
-          <td>link-name</td>
-          <td>Ensures links have discernible text</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Inventory</td>
-          <td>/inventory.html</td>
-          <td>list</td>
-          <td>Ensures that lists are structured correctly</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Inventory</td>
-          <td>/inventory.html</td>
-          <td>listitem</td>
-          <td>Ensures <li> elements are used semantically</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Inventory</td>
-          <td>/inventory.html</td>
           <td>meta-viewport-large</td>
           <td>Ensures <meta name="viewport"> can scale a significant amount</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Inventory</td>
-          <td>/inventory.html</td>
-          <td>nested-interactive</td>
-          <td>Ensures interactive controls are not nested as they are not always announced by screen readers or can cause focus problems for assistive technologies</td>
         </tr>
       
         <tr class="pass">
@@ -257,14 +148,21 @@
           <td>Ensures all page content is contained by landmarks</td>
         </tr>
       
+        <tr class="pass">
+          <td>Inventory</td>
+          <td>/inventory.html</td>
+          <td>target-size</td>
+          <td>Ensure touch target have sufficient size and space</td>
+        </tr>
+      
         </table>
     
         <div class="site-banner">
           <h2>Site2 (americanfidelity.com)</h2>
           <div class="site-stats">
             <span class="site-stat">Pages Scanned: 1</span>
-            <span class="site-stat">Total Violations: 22</span>
-            <span class="site-stat">Total Passes: 33</span>
+            <span class="site-stat">Total Violations: 4</span>
+            <span class="site-stat">Total Passes: 12</span>
           </div>
         </div>
         <h3>Violations</h3>
@@ -346,120 +244,8 @@
         <tr class="pass">
           <td>Strategy</td>
           <td>/strategy</td>
-          <td>aria-allowed-attr</td>
-          <td>Ensures an element's role supports its ARIA attributes</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
           <td>aria-allowed-role</td>
           <td>Ensures role attribute has an appropriate value for the element</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>aria-conditional-attr</td>
-          <td>Ensures ARIA attributes are used as described in the specification of the element's role</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>aria-deprecated-role</td>
-          <td>Ensures elements do not use deprecated roles</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>aria-hidden-body</td>
-          <td>Ensures aria-hidden="true" is not present on the document body.</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>aria-hidden-focus</td>
-          <td>Ensures aria-hidden elements are not focusable nor contain focusable elements</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>aria-prohibited-attr</td>
-          <td>Ensures ARIA attributes are not prohibited for an element's role</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>aria-required-attr</td>
-          <td>Ensures elements with ARIA roles have all required ARIA attributes</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>aria-required-children</td>
-          <td>Ensures elements with an ARIA role that require child roles contain them</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>aria-required-parent</td>
-          <td>Ensures elements with an ARIA role that require parent roles are contained by them</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>aria-roles</td>
-          <td>Ensures all elements with a role attribute use a valid value</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>aria-valid-attr-value</td>
-          <td>Ensures all ARIA attributes have valid values</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>aria-valid-attr</td>
-          <td>Ensures attributes that begin with aria- are valid ARIA attributes</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>button-name</td>
-          <td>Ensures buttons have discernible text</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>bypass</td>
-          <td>Ensures each page has at least one mechanism for a user to bypass navigation and jump straight to the content</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>document-title</td>
-          <td>Ensures each HTML document contains a non-empty <title> element</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>duplicate-id-aria</td>
-          <td>Ensures every id attribute value used in ARIA and in labels is unique</td>
         </tr>
       
         <tr class="pass">
@@ -474,20 +260,6 @@
           <td>/strategy</td>
           <td>heading-order</td>
           <td>Ensures the order of headings is semantically correct</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>html-has-lang</td>
-          <td>Ensures every HTML document has a lang attribute</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>html-lang-valid</td>
-          <td>Ensures the lang attribute of the <html> element has a valid value</td>
         </tr>
       
         <tr class="pass">
@@ -528,36 +300,8 @@
         <tr class="pass">
           <td>Strategy</td>
           <td>/strategy</td>
-          <td>link-name</td>
-          <td>Ensures links have discernible text</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>list</td>
-          <td>Ensures that lists are structured correctly</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>listitem</td>
-          <td>Ensures <li> elements are used semantically</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
           <td>meta-viewport-large</td>
           <td>Ensures <meta name="viewport"> can scale a significant amount</td>
-        </tr>
-      
-        <tr class="pass">
-          <td>Strategy</td>
-          <td>/strategy</td>
-          <td>nested-interactive</td>
-          <td>Ensures interactive controls are not nested as they are not always announced by screen readers or can cause focus problems for assistive technologies</td>
         </tr>
       
         <tr class="pass">
@@ -574,9 +318,15 @@
           <td>Ensures all page content is contained by landmarks</td>
         </tr>
       
+        <tr class="pass">
+          <td>Strategy</td>
+          <td>/strategy</td>
+          <td>target-size</td>
+          <td>Ensure touch target have sufficient size and space</td>
+        </tr>
+      
         </table>
     
-        <h2>Grand Total Violations: 46</h2>
       </body>
     </html>
   
