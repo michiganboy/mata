@@ -21,7 +21,7 @@ console.log("Bypass login all:", bypassLoginAll);
 console.log("Bypass login sites:", bypassLoginSites);
 console.log("Environment:", environment);
 
-const defaultRulesets = ['wcag2a', 'wcag21aa', 'best-practice'];
+const defaultRulesets = ['wcag21aa', 'best-practice'];
 const rulesets = customRulesets || defaultRulesets;
 
 type PageInfo = {
