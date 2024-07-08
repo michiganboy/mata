@@ -2,10 +2,14 @@
   "compilerOptions": {
     "target": "ES2019",
     "module": "commonjs",
-    "strict": true,
+    "moduleResolution": "node",
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "lib": ["esnext", "dom", "dom.iterable"]
+    "sourceMap": true,
+    "outDir": "./dist",
+    "strict": true,
+    "lib": ["esnext", "dom"],
+    "types": ["node", "@playwright/test"]
   },
-  "include": ["tests/**/*.ts"]
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
 }

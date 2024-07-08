@@ -1,4 +1,4 @@
-import { Fixtures, Page } from '@playwright/test';
+import { Fixtures, Page, BrowserContext, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { generateAccessibilityReport, EnhancedAxeResults } from './reporter';
 import { getSitesConfiguration, loadEnvironmentConfig, Site } from './siteConfiguration';
@@ -6,16 +6,22 @@ import { AuthenticationFixture } from './authentication';
 import fs from 'fs';
 import csv from 'csv-parser';
 
-const targetSite = process.argv.find(arg => arg.startsWith('--site='))?.split('=')[1];
-const singlePagePath = process.argv.find(arg => arg.startsWith('--path='))?.split('=')[1];
-const customRulesets = process.argv.find(arg => arg.startsWith('--rulesets='))?.split('=')[1]?.split(',');
-const bypassLoginAll = process.argv.includes('--bypass-login');
-const bypassLoginSites = process.argv
-  .filter(arg => arg.startsWith('--bypass-login='))
-  .map(arg => arg.split('=')[1]);
-const environment = process.argv.find(arg => arg.startsWith('--env='))?.split('=')[1] || 'qa';
+const targetSite = process.env.SITE;
+const singlePagePath = process.env.SINGLE_PAGE_PATH;
+const customRulesets = process.env.RULESETS?.split(',');
+const bypassLoginAll = process.env.BYPASS_LOGIN_ALL === 'true';
+const bypassLoginSites = process.env.BYPASS_LOGIN_SITES?.split(',') || [];
+const environment = process.env.ENV || 'qa';
 
-const defaultRulesets = ['wcag21a', 'wcag21aa', 'best-practice'];
+console.log("Command line arguments:");
+console.log("Target site:", targetSite);
+console.log("Single page path:", singlePagePath);
+console.log("Custom rulesets:", customRulesets);
+console.log("Bypass login all:", bypassLoginAll);
+console.log("Bypass login sites:", bypassLoginSites);
+console.log("Environment:", environment);
+
+const defaultRulesets = ['wcag2a', 'wcag21aa', 'best-practice'];
 const rulesets = customRulesets || defaultRulesets;
 
 type PageInfo = {
@@ -29,10 +35,11 @@ export type AccessibilityFixture = {
 
 type AccessibilityDeps = AuthenticationFixture & {
   page: Page;
+  context: BrowserContext;
 };
 
 export const accessibilityFixture: Fixtures<AccessibilityFixture, AccessibilityDeps> = {
-  runAccessibilityAudits: async ({ page, authenticate }, use) => {
+  runAccessibilityAudits: async ({ page, context, authenticate }, use) => {
     const runAudits = async () => {
       loadEnvironmentConfig(environment);
 
@@ -42,24 +49,43 @@ export const accessibilityFixture: Fixtures<AccessibilityFixture, AccessibilityD
 
       const sites = getSitesConfiguration(targetSite);
       const allResults: EnhancedAxeResults[] = [];
+      const errors: Error[] = [];
 
       for (const site of sites) {
         console.log(`Testing site: ${site.name}`);
+        console.log(`Site configuration:`, site);
         
         const bypassLoginForSite = bypassLoginAll || bypassLoginSites.includes(site.name);
         
-        if (site.requiresLogin && !bypassLoginForSite) {
-          await authenticate(site.name, site.loginUrl!, site.username!, site.password!);
-        }
+        console.log(`Bypass login for ${site.name}: ${bypassLoginForSite}`);
 
-        if (singlePagePath && targetSite === site.name) {
-          await testSinglePage(page, site, singlePagePath, allResults);
-        } else if (!singlePagePath) {
-          await testAllPages(page, site, allResults);
+        try {
+          if (site.requiresLogin && !bypassLoginForSite) {
+            if (!site.username || !site.password) {
+              throw new Error(`Missing login configuration for site ${site.name}`);
+            }
+            await authenticate(site.name, site.loginUrl!, site.username, site.password);
+          }
+
+          if (singlePagePath && targetSite === site.name) {
+            await testSinglePage(page, site, singlePagePath, allResults);
+          } else if (!singlePagePath) {
+            await testAllPages(page, site, allResults);
+          }
+        } catch (error) {
+          console.error(`Error testing site ${site.name}:`, error);
+          errors.push(error as Error);
         }
       }
 
-      return generateAccessibilityReport(allResults);
+      const totalViolations = generateAccessibilityReport(allResults);
+      console.log(`Total violations across all sites: ${totalViolations}`);
+
+      if (errors.length > 0) {
+        throw new AggregateError(errors, 'Errors occurred during accessibility testing');
+      }
+
+      return totalViolations;
     };
 
     await use(runAudits);
@@ -68,6 +94,7 @@ export const accessibilityFixture: Fixtures<AccessibilityFixture, AccessibilityD
 
 async function testSinglePage(page: Page, site: Site, path: string, allResults: EnhancedAxeResults[]) {
   const fullUrl = new URL(path, site.baseUrl).toString();
+  console.log(`Navigating to: ${fullUrl}`);
   await page.goto(fullUrl);
   
   const results = await runAxe(page, path, site.name);
@@ -100,10 +127,12 @@ async function runAxe(page: Page, pageName: string, siteName: string): Promise<E
   }
 
   const results = await axeBuilder.analyze();
+  
   return {
     ...results,
     pageName,
     siteName,
+    url: page.url(),
   };
 }
 

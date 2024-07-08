@@ -21,13 +21,14 @@ export function loadEnvironmentConfig(env: string) {
 }
 
 export function getSitesConfiguration(targetSite: string | undefined): Site[] {
-  const bypassLoginAll = process.argv.includes("--bypass-login");
-  const bypassLoginSites = process.argv
-    .filter((arg) => arg.startsWith("--bypass-login="))
-    .map((arg) => arg.split("=")[1]);
+  const bypassLoginAll = process.env.BYPASS_LOGIN_ALL === 'true';
+  const bypassLoginSites = process.env.BYPASS_LOGIN_SITES?.split(',') || [];
   const siteNames = targetSite
     ? [targetSite]
     : process.env.SITE_NAMES?.split(",") || [];
+
+  console.log("Bypass login all:", bypassLoginAll);
+  console.log("Bypass login sites:", bypassLoginSites);
 
   const sites: Site[] = [];
 
@@ -46,16 +47,20 @@ export function getSitesConfiguration(targetSite: string | undefined): Site[] {
       pathsCsvFile
     );
 
-    const bypassLoginForSite =
-      bypassLoginAll || bypassLoginSites.includes(name);
+    const bypassLoginForSite = bypassLoginAll || bypassLoginSites.includes(name);
     const loginUrl = process.env[`${name.toUpperCase()}_LOGIN_URL`];
     const requiresLogin = !bypassLoginForSite && !!loginUrl;
+
+    console.log(`Site ${name}:`);
+    console.log(`  Bypass login: ${bypassLoginForSite}`);
+    console.log(`  Requires login: ${requiresLogin}`);
 
     const site: Site = {
       name,
       baseUrl,
       pathsCsvFile: fullPathsCsvFile,
       requiresLogin,
+      loginUrl,
     };
 
     if (requiresLogin) {
@@ -63,10 +68,9 @@ export function getSitesConfiguration(targetSite: string | undefined): Site[] {
       const password = process.env[`${name.toUpperCase()}_PASSWORD`];
 
       if (!username || !password) {
-        throw new Error(`Missing login configuration for site ${name}`);
+        console.warn(`Warning: Missing login configuration for site ${name}, but login is required.`);
       }
 
-      site.loginUrl = loginUrl;
       site.username = username;
       site.password = password;
     }
@@ -77,6 +81,8 @@ export function getSitesConfiguration(targetSite: string | undefined): Site[] {
   if (sites.length === 0) {
     throw new Error("No sites configured or target site not found");
   }
+
+  console.log("Sites configuration:", JSON.stringify(sites, null, 2));
 
   return sites;
 }
