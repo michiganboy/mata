@@ -12,13 +12,15 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  reporter: [['html', { open: 'never' }]],
   use: {
     trace: 'on-first-retry',
     // Custom properties
     site: process.env.SITE,
     bypassLoginAll: process.env.BYPASS_LOGIN_ALL === 'true',
-    bypassLoginSites: process.env.BYPASS_LOGIN_SITES ? process.env.BYPASS_LOGIN_SITES.split(',') : [],
+    bypassLoginSites: process.env.BYPASS_LOGIN_SITES
+      ? process.env.BYPASS_LOGIN_SITES.split(',')
+      : [],
     path: process.env.PATH,
     rulesets: process.env.RULESETS,
   },

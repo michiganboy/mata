@@ -22,6 +22,7 @@ This project provides a robust, flexible solution for automating accessibility t
 This tool is designed to streamline the process of ensuring web accessibility compliance, making it easier for teams to build inclusive, accessible web experiences for all users.
 
 ## Table of Contents
+
 1. [Prerequisites](#prerequisites)
 2. [Dependencies](#dependencies)
 3. [Installation](#installation)
@@ -43,6 +44,7 @@ This tool is designed to streamline the process of ensuring web accessibility co
 - Playwright Test for VSCode extension
 
 To install the Playwright Test for VSCode extension:
+
 1. Open VSCode
 2. Go to the Extensions view (Ctrl+Shift+X)
 3. Search for "Playwright Test"
@@ -53,15 +55,19 @@ To install the Playwright Test for VSCode extension:
 This project relies on the following npm packages:
 
 - `@playwright/test`: For browser automation and testing
-- `axe-core`: For accessibility testing
 - `@axe-core/playwright`: Integration of axe-core with Playwright
+- `axe-core`: For accessibility testing
 - `axe-html-reporter`: For generating HTML reports of accessibility test results
 - `csv-parser`: For parsing CSV files
 - `dotenv`: For loading environment variables from .env files
+- `cross-env`: For setting environment variables across platforms
+- `ts-node`: For running TypeScript files directly
+- `@types/node`: TypeScript definitions for Node.js
 
 ## Installation
 
 1. Clone this repository:
+
    ```
    git clone https://github.com/your-username/accessibility-testing-automation.git
    cd accessibility-testing-automation
@@ -77,6 +83,7 @@ This project relies on the following npm packages:
 ### Environment Files
 
 Create separate .env files for each environment in the `env/` directory:
+
 - `env/.env.qa` for QA environment
 - `env/.env.staging` for Staging environment
 - `env/.env.prod` for Production environment
@@ -114,13 +121,13 @@ Adjust the values for each environment as needed. Note that Site3 is configured 
 
 Create CSV files for each site's paths in the `tests/data/` directory (e.g., `site1_paths.csv`, `site2_paths.csv`, `site3_paths.csv`). Each file should contain a list of pages to test, with their names and paths:
 
-| name      | path    |
-|-----------|---------|
-| HomePage  | /       |
-| AboutPage | /about  |
-| ContactPage | /contact |
+| name         | path      |
+| ------------ | --------- |
+| HomePage     | /         |
+| AboutPage    | /about    |
+| ContactPage  | /contact  |
 | ProductsPage | /products |
-| BlogPage  | /blog   |
+| BlogPage     | /blog     |
 
 Ensure that the CSV file names in the `tests/data/` directory match those specified in the .env files.
 
@@ -129,35 +136,43 @@ Ensure that the CSV file names in the `tests/data/` directory match those specif
 ### Running Tests
 
 1. Test all sites in the default QA environment:
+
    ```
    npm run test
    ```
 
 2. Test in a specific environment:
+
    ```
    npm run test -- --env=staging
    ```
+
    or
+
    ```
    npm run test -- --env=prod
    ```
 
 3. Test a specific site in a specific environment:
+
    ```
    npm run test -- --site=Site1 --env=staging
    ```
 
 4. Bypass login for all sites in a specific environment:
+
    ```
    npm run test -- --env=prod --bypass-login
    ```
 
 5. Bypass login for specific sites in a specific environment:
+
    ```
    npm run test -- --env=staging --bypass-login=Site1 --bypass-login=Site2
    ```
 
 6. Test a single page for a specific site:
+
    ```
    npm run test -- --site=Site1 --env=prod --path=/about
    ```
@@ -165,6 +180,7 @@ Ensure that the CSV file names in the `tests/data/` directory match those specif
    This will test only the '/about' page for Site1 in the production environment.
 
 7. Test a single page for a specific site in QA (default environment):
+
    ```
    npm run test -- --site=Site1 --path=/contact
    ```
@@ -172,16 +188,18 @@ Ensure that the CSV file names in the `tests/data/` directory match those specif
    This will test only the '/contact' page for Site1 in the QA environment.
 
 8. Test with specific axe-core rulesets:
+
    ```
    npm run test -- --rulesets=wcag2a,wcag2aa,section508
    ```
 
    By default, the tests use the following rulesets:
-   - wcag21aa
+
    - wcag22aa
    - best-practice
 
    You can override these defaults by using the `--rulesets` flag. Available rulesets include:
+
    - wcag2a
    - wcag2aa
    - wcag2aaa
@@ -193,11 +211,13 @@ Ensure that the CSV file names in the `tests/data/` directory match those specif
    - experimental
 
    You can combine this with other flags:
+
    ```
    npm run test -- --site=Site1 --env=staging --rulesets=wcag2aa,best-practice
    ```
 
 Notes:
+
 - The `--env` flag specifies the environment to test (qa, staging, or prod). If not specified, it defaults to qa.
 - The `--bypass-login` flag without a site name will skip the authentication step for all tested sites. Using `--bypass-login=SiteName` will skip authentication only for the specified site(s).
 - The `--path` flag specifies a single page to test. When used, it overrides the paths specified in the CSV files.
@@ -210,7 +230,7 @@ After running the tests, an HTML report will be generated in the `accessibility-
 
 Example of a generated report:
 
-![Accessibility Test Report Example](images/accessibility-report-example.png)
+![image](images/report.png)
 
 This report provides an overview of the accessibility issues found, including:
 
@@ -225,6 +245,7 @@ This report provides an overview of the accessibility issues found, including:
 ## Adding a New Site
 
 1. Add the new site's configuration to each environment's .env file in the `env/` directory:
+
    ```
    SITE4_BASE_URL=https://site4.example.com
    SITE4_LOGIN_URL=https://site4.example.com/login
@@ -237,16 +258,17 @@ This report provides an overview of the accessibility issues found, including:
    ```
 
 2. Update the `SITE_NAMES` variable in each .env file to include the new site:
+
    ```
    SITE_NAMES=Site1,Site2,Site3,Site4
    ```
 
 3. Create a new CSV file (e.g., `site4_paths.csv`) in the `tests/data/` directory with the paths to test for the new site:
 
-   | name      | path    |
-   |-----------|---------|
-   | HomePage  | /       |
-   | AboutPage | /about  |
+   | name        | path     |
+   | ----------- | -------- |
+   | HomePage    | /        |
+   | AboutPage   | /about   |
    | ContactPage | /contact |
 
 ## Customization

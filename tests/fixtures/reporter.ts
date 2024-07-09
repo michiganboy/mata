@@ -19,12 +19,14 @@ type EnhancedResults = {
   violations: EnhancedResultItem[];
   incomplete: EnhancedResultItem[];
   inapplicable: EnhancedResultItem[];
-}
+};
 
-export function generateAccessibilityReport(allResults: EnhancedAxeResults[]): number {
+export function generateAccessibilityReport(
+  allResults: EnhancedAxeResults[]
+): number {
   const consolidatedResult: { [siteName: string]: EnhancedResults } = {};
 
-  allResults.forEach(result => {
+  allResults.forEach((result) => {
     if (!consolidatedResult[result.siteName]) {
       consolidatedResult[result.siteName] = {
         passes: [],
@@ -35,17 +37,19 @@ export function generateAccessibilityReport(allResults: EnhancedAxeResults[]): n
     }
 
     const siteResult = consolidatedResult[result.siteName];
-    
-    ['passes', 'violations', 'incomplete', 'inapplicable'].forEach((resultType) => {
-      (result[resultType as keyof AxeResults] as Result[]).forEach(item => {
-        siteResult[resultType as keyof EnhancedResults].push({
-          ...item,
-          siteName: result.siteName,
-          pageName: result.pageName,
-          pageUrl: result.url,
+
+    ['passes', 'violations', 'incomplete', 'inapplicable'].forEach(
+      (resultType) => {
+        (result[resultType as keyof AxeResults] as Result[]).forEach((item) => {
+          siteResult[resultType as keyof EnhancedResults].push({
+            ...item,
+            siteName: result.siteName,
+            pageName: result.pageName,
+            pageUrl: result.url,
+          });
         });
-      });
-    });
+      }
+    );
   });
 
   const customReportHTML = generateCustomReport(consolidatedResult);
@@ -55,22 +59,30 @@ export function generateAccessibilityReport(allResults: EnhancedAxeResults[]): n
     fs.mkdirSync(reportsDir);
   }
 
-  const reportPath = path.join(reportsDir, 'consolidated-multi-site-accessibility-report.html');
+  const reportPath = path.join(
+    reportsDir,
+    'consolidated-multi-site-accessibility-report.html'
+  );
   fs.writeFileSync(reportPath, customReportHTML);
 
   console.log(`Consolidated report saved at ${reportPath}`);
 
-  const totalViolations = Object.values(consolidatedResult).reduce((sum, result) => 
-    sum + result.violations.length, 0
+  const totalViolations = Object.values(consolidatedResult).reduce(
+    (sum, result) => sum + result.violations.length,
+    0
   );
   if (totalViolations > 0) {
-    console.warn(`Total accessibility violations found: ${totalViolations}. Check the consolidated report for details.`);
+    console.warn(
+      `Total accessibility violations found: ${totalViolations}. Check the consolidated report for details.`
+    );
   }
 
   return totalViolations;
 }
 
-function generateCustomReport(results: { [siteName: string]: EnhancedResults }): string {
+function generateCustomReport(results: {
+  [siteName: string]: EnhancedResults;
+}): string {
   let html = `
     <html>
       <head>
@@ -103,10 +115,11 @@ function generateCustomReport(results: { [siteName: string]: EnhancedResults }):
   `;
 
   for (const [siteName, siteResults] of Object.entries(results)) {
-    const baseDomain = new URL(siteResults.violations[0]?.pageUrl || '').hostname;
+    const baseDomain = new URL(siteResults.violations[0]?.pageUrl || '')
+      .hostname;
     const totalPages = new Set([
-      ...siteResults.violations.map(v => v.pageUrl),
-      ...siteResults.passes.map(p => p.pageUrl)
+      ...siteResults.violations.map((v) => v.pageUrl),
+      ...siteResults.passes.map((p) => p.pageUrl),
     ]).size;
     const totalViolations = siteResults.violations.length;
     const totalPasses = siteResults.passes.length;
@@ -135,18 +148,28 @@ function generateCustomReport(results: { [siteName: string]: EnhancedResults }):
           </tr>
     `;
 
-    siteResults.violations.forEach(violation => {
+    siteResults.violations.forEach((violation) => {
       const parsedUrl = new URL(violation.pageUrl);
       html += `
         <tr class="violation">
           <td>${violation.pageName}</td>
           <td>${parsedUrl.pathname}</td>
-          <td>${violation.id} <a href="https://dequeuniversity.com/rules/axe/4.9/${violation.id}?application=playwright" target="_blank" class="learn-more">Learn More</a></td>
-          <td>${violation.tags.filter(tag => tag.startsWith('wcag') || tag.startsWith('best-practice')).join(', ')}</td>
+          <td>${
+            violation.id
+          } <a href="https://dequeuniversity.com/rules/axe/4.9/${
+        violation.id
+      }?application=playwright" target="_blank" class="learn-more">Learn More</a></td>
+          <td>${violation.tags
+            .filter(
+              (tag) => tag.startsWith('wcag') || tag.startsWith('best-practice')
+            )
+            .join(', ')}</td>
           <td class="impact-${violation.impact}">${violation.impact}</td>
           <td>${violation.description}</td>
           <td>${formatNodes(violation.nodes)}</td>
-          <td class="fix-suggestion">${violation.nodes[0]?.failureSummary || 'N/A'}</td>
+          <td class="fix-suggestion">${
+            violation.nodes[0]?.failureSummary || 'N/A'
+          }</td>
           <td>${violation.nodes.length}</td>
         </tr>
       `;
@@ -164,7 +187,7 @@ function generateCustomReport(results: { [siteName: string]: EnhancedResults }):
           </tr>
     `;
 
-    siteResults.passes.forEach(pass => {
+    siteResults.passes.forEach((pass) => {
       const parsedUrl = new URL(pass.pageUrl);
       html += `
         <tr class="pass">
@@ -190,5 +213,7 @@ function generateCustomReport(results: { [siteName: string]: EnhancedResults }):
 }
 
 function formatNodes(nodes: NodeResult[]): string {
-  return nodes.map(node => `<span class="element">${node.target.join(' ')}</span>`).join('');
+  return nodes
+    .map((node) => `<span class="element">${node.target.join(' ')}</span>`)
+    .join('');
 }
