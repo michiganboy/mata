@@ -136,4 +136,4 @@ dist
 /blob-report/
 /playwright/.cache/
 /tests/data
-/accessibility-reports/
+accessibility-reports/
