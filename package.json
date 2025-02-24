@@ -23,7 +23,7 @@
   "homepage": "https://github.com/michiganboy/mata#readme",
   "devDependencies": {
     "@axe-core/playwright": "^4.9.1",
-    "@playwright/test": "^1.45.1",
+    "@playwright/test": "^1.50.1",
     "@types/node": "^20.14.10",
     "axe-core": "^4.9.1",
     "axe-html-reporter": "^2.2.3",

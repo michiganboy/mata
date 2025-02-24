@@ -1,45 +1,55 @@
 import { defineConfig, devices } from '@playwright/test';
-import dotenv from 'dotenv';
 import path from 'path';
+import dotenv from 'dotenv';
 
-// Load environment-specific .env file
+// Load environment-specific variables
 const env = process.env.ENV || 'qa';
 dotenv.config({ path: path.resolve(__dirname, `env/.env.${env}`) });
 
-export default defineConfig({
-  testDir: './tests',
-  fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: [['html', { open: 'never' }]],
-  use: {
-    trace: 'on-first-retry',
-    // Custom properties
-    site: process.env.SITE,
-    bypassLoginAll: process.env.BYPASS_LOGIN_ALL === 'true',
-    bypassLoginSites: process.env.BYPASS_LOGIN_SITES
-      ? process.env.BYPASS_LOGIN_SITES.split(',')
-      : [],
-    path: process.env.PATH,
-    rulesets: process.env.RULESETS,
-  },
+// Define environment-specific configuration with optional properties
+const envConfig = {
+  site: process.env.SITE,
+  bypassLoginAll: process.env.BYPASS_LOGIN_ALL === 'true' || undefined,
+  bypassLoginSites: process.env.BYPASS_LOGIN_SITES?.split(','),
+  path: process.env.SINGLE_PAGE_PATH,
+  rulesets: process.env.RULESETS,
+  env: env,
+};
 
+export default defineConfig({
+  globalSetup: './global-setup',
+  globalTeardown: './global-teardown',
+  testDir: './tests',
+  timeout: 0,
+  reporter: [['html', { outputFolder: 'playwright-report' }], ['list']],
+  fullyParallel: true,
+  reportSlowTests: null,
+  use: {
+    baseURL: process.env.BASE_URL,
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+  },
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        ...envConfig,
+      },
     },
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      use: {
+        ...devices['Desktop Firefox'],
+        ...envConfig,
+      },
     },
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: {
+        ...devices['Desktop Safari'],
+        ...envConfig,
+      },
     },
   ],
-
-  // Global setup to run before all tests
-  globalSetup: './global-setup.ts', // Updated path
 });

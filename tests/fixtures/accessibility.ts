@@ -9,6 +9,7 @@ import {
 import { AuthenticationFixture } from './authentication';
 import fs from 'fs';
 import csv from 'csv-parser';
+import type { AxeResults, Result, TestEnvironment } from 'axe-core';
 
 const targetSite = process.env.SITE;
 const singlePagePath = process.env.SINGLE_PAGE_PATH;
@@ -34,7 +35,7 @@ type PageInfo = {
 };
 
 export type AccessibilityFixture = {
-  runAccessibilityAudits: () => Promise<number>;
+  runAccessibilityAudits: (browserName: string) => Promise<number>;
 };
 
 type AccessibilityDeps = AuthenticationFixture & {
@@ -42,54 +43,74 @@ type AccessibilityDeps = AuthenticationFixture & {
   context: BrowserContext;
 };
 
-export const accessibilityFixture: Fixtures<
-  AccessibilityFixture,
-  AccessibilityDeps
-> = {
+export const accessibilityFixture: Fixtures<AccessibilityFixture, AccessibilityDeps> = {
   runAccessibilityAudits: async ({ page, context, authenticate }, use) => {
-    const runAudits = async () => {
+    const runAudits = async (browserName: string) => {
+      console.log(`Running accessibility audits in ${browserName}`);
       loadEnvironmentConfig(environment);
 
       if (singlePagePath && !targetSite) {
-        throw new Error(
-          'To test a single page, you must specify a site using --site=SiteName'
-        );
+        throw new Error('To test a single page, you must specify a site using --site=SiteName');
       }
+
+      await context.setDefaultTimeout(0);
+      await context.setDefaultNavigationTimeout(0);
+      await page.setDefaultTimeout(0);
+      await page.setDefaultNavigationTimeout(0);
 
       const sites = getSitesConfiguration(targetSite);
       const allResults: EnhancedAxeResults[] = [];
 
-      for (const site of sites) {
-        console.log(`Testing site: ${site.name}`);
-        console.log(`Site configuration:`, site);
+      try {
+        let totalPagesAcrossSites = 0;
+        let completedPagesTotal = 0;
 
-        const bypassLoginForSite =
-          bypassLoginAll || bypassLoginSites.includes(site.name);
-
-        console.log(`Bypass login for ${site.name}: ${bypassLoginForSite}`);
-
-        if (site.requiresLogin && !bypassLoginForSite) {
-          if (!site.username || !site.password) {
-            throw new Error(
-              `Missing login configuration for site ${site.name}`
-            );
+        // First, calculate total pages across all sites
+        for (const site of sites) {
+          if (!singlePagePath) {
+            const pages = await readPagesFromCSV(site.pathsCsvFile);
+            totalPagesAcrossSites += pages.length;
           }
-          await authenticate(
-            site.name,
-            site.loginUrl!,
-            site.username,
-            site.password
-          );
         }
 
-        if (singlePagePath && targetSite === site.name) {
-          await testSinglePage(page, site, singlePagePath, allResults);
-        } else if (!singlePagePath) {
-          await testAllPages(page, site, allResults);
+        if (singlePagePath) {
+          totalPagesAcrossSites = 1;
         }
+
+        console.log(`[${browserName}] Total pages to scan across all sites: ${totalPagesAcrossSites}`);
+
+        for (const site of sites) {
+          console.log(`[${browserName}] Testing site: ${site.name}`);
+          
+          const bypassLoginForSite = bypassLoginAll || bypassLoginSites.includes(site.name);
+          console.log(`[${browserName}] Bypass login for ${site.name}: ${bypassLoginForSite}`);
+          
+          if (site.requiresLogin && !bypassLoginForSite) {
+            if (!site.username || !site.password) {
+              throw new Error(`Missing login configuration for site ${site.name}`);
+            }
+            await authenticate(site.name, site.loginUrl!, site.username, site.password);
+          }
+
+          if (singlePagePath && targetSite === site.name) {
+            await testSinglePage(page, site, singlePagePath, allResults, browserName);
+            completedPagesTotal++;
+            console.log(`[${browserName}] Overall progress: ${completedPagesTotal}/${totalPagesAcrossSites} pages scanned`);
+          } else if (!singlePagePath) {
+            const incrementProgress = () => {
+              completedPagesTotal++;
+              console.log(`[${browserName}] Overall progress: ${completedPagesTotal}/${totalPagesAcrossSites} pages scanned`);
+            };
+            await testAllPages(page, site, allResults, browserName, incrementProgress);
+          }
+        }
+
+        console.log(`[${browserName}] Completed all scans (${completedPagesTotal}/${totalPagesAcrossSites}), generating report...`);
+        return generateAccessibilityReport(allResults, browserName);
+      } catch (error) {
+        console.error(`[${browserName}] Error during accessibility testing:`, error);
+        throw error;
       }
-
-      return generateAccessibilityReport(allResults);
     };
 
     await use(runAudits);
@@ -100,37 +121,97 @@ async function testSinglePage(
   page: Page,
   site: Site,
   path: string,
-  allResults: EnhancedAxeResults[]
+  allResults: EnhancedAxeResults[],
+  browserName: string
 ) {
   const fullUrl = new URL(path, site.baseUrl).toString();
-  console.log(`Navigating to: ${fullUrl}`);
-  await page.goto(fullUrl);
+  console.log(`[${browserName}] Navigating to: ${fullUrl}`);
+  
+  try {
+    // For WebKit, use domcontentloaded, for others use load
+    const loadState = browserName.toLowerCase().includes('webkit') ? 'domcontentloaded' : 'load';
+    
+    const response = await page.goto(fullUrl, {
+      waitUntil: loadState,
+      timeout: 0
+    });
 
-  const results = await runAxe(page, path, site.name);
-  results.url = fullUrl;
-  allResults.push(results);
+    if (!response?.ok()) {
+      console.error(`[${browserName}] Failed to load page: ${fullUrl}, status: ${response?.status()}`);
+      return;
+    }
 
-  console.log(`Completed scan for ${site.name} - ${path} (${fullUrl})`);
+    if (browserName.toLowerCase().includes('webkit')) {
+      // For WebKit, wait for any animations or transitions to complete
+      await page.waitForLoadState('domcontentloaded', { timeout: 0 });
+      // Small additional wait to ensure page is stable
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } else {
+      await page.waitForLoadState('networkidle', { timeout: 0 });
+    }
+    
+    const results = await runAxe(page, path, site.name);
+    allResults.push(results);
+
+    console.log(`[${browserName}] Completed scan for ${site.name} - ${path} (${fullUrl})`);
+  } catch (error) {
+    console.error(`[${browserName}] Error testing page ${path} for site ${site.name}:`, error);
+  }
 }
 
 async function testAllPages(
   page: Page,
   site: Site,
-  allResults: EnhancedAxeResults[]
+  allResults: EnhancedAxeResults[],
+  browserName: string,
+  incrementProgress: () => void
 ) {
-  const pages = await readPagesFromCSV(site.pathsCsvFile);
+  try {
+    const pages = await readPagesFromCSV(site.pathsCsvFile);
+    const totalPages = pages.length;
+    let completedPages = 0;
+    
+    console.log(`[${browserName}] Starting scan of ${totalPages} pages for ${site.name}`);
+    
+    for (const pageInfo of pages) {
+      const fullUrl = new URL(pageInfo.path, site.baseUrl).toString();
+      
+      try {
+        // For WebKit, use domcontentloaded, for others use load
+        const loadState = browserName.toLowerCase().includes('webkit') ? 'domcontentloaded' : 'load';
+        
+        const response = await page.goto(fullUrl, {
+          waitUntil: loadState,
+          timeout: 0
+        });
 
-  for (const pageInfo of pages) {
-    const fullUrl = new URL(pageInfo.path, site.baseUrl).toString();
-    await page.goto(fullUrl);
+        if (!response?.ok()) {
+          console.error(`[${browserName}] Failed to load page: ${fullUrl}, status: ${response?.status()}`);
+          continue;
+        }
 
-    const results = await runAxe(page, pageInfo.name, site.name);
-    results.url = fullUrl;
-    allResults.push(results);
+        if (browserName.toLowerCase().includes('webkit')) {
+          // For WebKit, wait for any animations or transitions to complete
+          await page.waitForLoadState('domcontentloaded', { timeout: 0 });
+          // Small additional wait to ensure page is stable
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
+          await page.waitForLoadState('networkidle', { timeout: 0 });
+        }
+        
+        const results = await runAxe(page, pageInfo.name, site.name);
+        allResults.push(results);
 
-    console.log(
-      `Completed scan for ${site.name} - ${pageInfo.name} (${fullUrl})`
-    );
+        completedPages++;
+        incrementProgress();
+        console.log(`[${browserName}] Completed scan ${completedPages}/${totalPages} for ${site.name} - ${pageInfo.name} (${fullUrl})`);
+      } catch (pageError) {
+        console.error(`[${browserName}] Error testing page ${pageInfo.name} (${fullUrl}):`, pageError);
+        continue;
+      }
+    }
+  } catch (error) {
+    console.error(`[${browserName}] Error testing pages for site ${site.name}:`, error);
   }
 }
 
@@ -139,26 +220,55 @@ async function runAxe(
   pageName: string,
   siteName: string
 ): Promise<EnhancedAxeResults> {
-  let axeBuilder = new AxeBuilder({ page });
+  try {
+    let axeBuilder = new AxeBuilder({ page });
 
-  if (rulesets.length > 0) {
-    axeBuilder = axeBuilder.withTags(rulesets);
+    if (rulesets.length > 0) {
+      axeBuilder = axeBuilder.withTags(rulesets);
+    }
+
+    const results = await axeBuilder.analyze();
+    const url = page.url();
+
+    return {
+      ...results,
+      pageName,
+      siteName,
+      url
+    };
+  } catch (error) {
+    console.error(`Error running axe analysis for ${pageName}:`, error);
+    const url = page.url();
+    
+    return {
+      pageName,
+      siteName,
+      url,
+      violations: [],
+      passes: [],
+      incomplete: [],
+      inapplicable: [],
+      timestamp: new Date().toISOString(),
+      testEngine: { name: 'axe-core', version: 'unknown' },
+      testRunner: { name: 'playwright' },
+      testEnvironment: {
+        orientationAngle: 0,
+        orientationType: 'landscape-primary',
+        windowHeight: 0,
+        windowWidth: 0,
+        userAgent: navigator.userAgent
+      },
+      toolOptions: {}
+    };
   }
-
-  const results = await axeBuilder.analyze();
-
-  return {
-    ...results,
-    pageName,
-    siteName,
-    url: page.url(),
-  };
 }
 
 async function readPagesFromCSV(filePath: string): Promise<PageInfo[]> {
   return new Promise((resolve, reject) => {
     const pages: PageInfo[] = [];
-    fs.createReadStream(filePath)
+    const stream = fs.createReadStream(filePath);
+    
+    stream
       .pipe(csv())
       .on('data', (row) => {
         pages.push({
@@ -166,7 +276,18 @@ async function readPagesFromCSV(filePath: string): Promise<PageInfo[]> {
           path: row.path,
         });
       })
-      .on('end', () => resolve(pages))
-      .on('error', (error) => reject(error));
+      .on('end', () => {
+        stream.destroy();
+        resolve(pages);
+      })
+      .on('error', (error) => {
+        stream.destroy();
+        reject(error);
+      });
+
+    stream.on('error', (error) => {
+      stream.destroy();
+      reject(error);
+    });
   });
 }
