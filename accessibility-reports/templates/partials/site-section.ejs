@@ -1,0 +1,33 @@
+<% 
+let baseDomain = "unknown";
+try {
+  if (siteResult.violations.length > 0) {
+    baseDomain = new URL(siteResult.violations[0].pageUrl).hostname;
+  }
+} catch (e) {
+  baseDomain = "unknown";
+}
+
+const siteSummary = siteResult.summary;
+const totalPages = siteSummary.uniquePages.size;
+%>
+<div class="site-section" data-site="<%= siteName %>">
+  <div class="site-banner">
+    <h2><%= siteName %> (<%= baseDomain %>)</h2>
+    <div class="site-stats">
+      <span class="site-stat">Pages Scanned: <%= totalPages %></span>
+      <span class="site-stat violations-count">Total Violations: <%= siteResult.violations.length %></span>
+      <span class="site-stat">Critical: <%= siteSummary.criticalViolations %></span>
+      <span class="site-stat">Serious: <%= siteSummary.seriousViolations %></span>
+      <span class="site-stat">Moderate: <%= siteSummary.moderateViolations %></span>
+      <span class="site-stat">Minor: <%= siteSummary.minorViolations %></span>
+      <span class="site-stat">Unique Rules: <%= siteSummary.uniqueRules.size %></span>
+    </div>
+  </div>
+  
+  <h3>Violations</h3>
+  <%- include('violation-table', { 
+    siteResult, 
+    siteName
+  }) %>
+</div>

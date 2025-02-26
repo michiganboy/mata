@@ -1,0 +1,63 @@
+<div class="summary-container">
+    <h2>Executive Summary</h2>
+    
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div>
+          <div class="summary-title">Total Violations</div>
+          <div class="summary-value"><%= reportData.summary.totalViolations %></div>
+        </div>
+        <div class="summary-subtitle">Across <%= reportData.summary.uniquePagesCount %> pages</div>
+      </div>
+      
+      <div class="summary-card">
+        <div>
+          <div class="summary-title">Unique WCAG Rules Violated</div>
+          <div class="summary-value"><%= reportData.summary.uniqueRulesCount %></div>
+        </div>
+        <div class="summary-subtitle">Across <%= reportData.summary.browsersArray.join(', ') %> browsers</div>
+      </div>
+      
+      <div class="summary-card">
+        <div>
+          <div class="summary-title">Impact Breakdown</div>
+          <div class="impact-summary">
+            <span class="impact-badge critical-badge"><%= reportData.summary.criticalViolations %></span>
+            <span class="impact-badge serious-badge"><%= reportData.summary.seriousViolations %></span>
+            <span class="impact-badge moderate-badge"><%= reportData.summary.moderateViolations %></span>
+            <span class="impact-badge minor-badge"><%= reportData.summary.minorViolations %></span>
+          </div>
+        </div>
+        <div class="summary-subtitle">Critical, Serious, Moderate, Minor</div>
+      </div>
+      
+      <div class="summary-card">
+        <div>
+          <div class="summary-title">Sites Tested</div>
+          <div class="summary-value"><%= Object.keys(results).length %></div>
+        </div>
+        <div class="summary-subtitle"><%= Object.keys(results).join(', ') %></div>
+      </div>
+    </div>
+    
+    <div class="export-btns">
+      <button id="exportViolationsCSV" class="export-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Export Violations CSV
+      </button>
+      <button id="exportSummaryCSV" class="export-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+        Export Summary CSV
+      </button>
+    </div>
+  </div>

@@ -1,0 +1,59 @@
+<div class="custom-table-container">
+    <table data-site="<%= siteName %>" data-type="violations" class="custom-table">
+      <thead>
+        <tr>
+          <th style="width: 7%;">Browser</th>
+          <th style="width: 10%;">Page Name</th>
+          <th style="width: 10%;">Path</th>
+          <th style="width: 10%;">Rule ID</th>
+          <th style="width: 10%;">WCAG</th>
+          <th style="width: 8%;">Impact</th>
+          <th style="width: 20%;">Description</th>
+          <th style="width: 15%;">Elements</th>
+          <th style="width: 10%;">Fix Suggestion</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% siteResult.violations.forEach(violation => { 
+          let pathname = "";
+          try {
+            pathname = new URL(violation.pageUrl).pathname;
+          } catch (e) {
+            pathname = violation.pageUrl;
+          }
+  
+          const browser = violation.browser || 'unknown';
+          const safeDescription = violation.description ? 
+            violation.description.replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+        %>
+          <tr class="violation">
+            <td>
+              <span class="browser-tag browser-<%= browser.toLowerCase() %>">
+                <%= browser %>
+              </span>
+            </td>
+            <td><%= violation.pageName %></td>
+            <td>
+              <a href="<%= violation.pageUrl %>" class="page-link" target="_blank">
+                <%= pathname %>
+              </a>
+            </td>
+            <td>
+              <%= violation.id %> 
+              <a href="https://dequeuniversity.com/rules/axe/4.9/<%= violation.id %>?application=playwright" 
+                 target="_blank" class="learn-more">Learn More</a>
+            </td>
+            <td>
+              <%= violation.tags
+                    .filter(tag => tag.startsWith('wcag') || tag.startsWith('best-practice'))
+                    .join(', ') %>
+            </td>
+            <td class="impact-<%= violation.impact %>"><%= violation.impact %></td>
+            <td><%= safeDescription %></td>
+            <td><%- violation.formattedNodes %></td>
+            <td class="fix-suggestion"><%- violation.formattedFixSuggestion %></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>

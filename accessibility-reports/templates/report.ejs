@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-Site Accessibility Audit Report</title>
+  <link rel="stylesheet" href="../resources/styles/report.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+  <script>
+    // Report data from JSON
+    //ignore error
+    const reportData = <%- JSON.stringify(reportData) %>;
+  </script>
+  <script src="../resources/scripts/report.js"></script>
+</head>
+<body>
+  <div class="container">
+    <%- include('partials/header') %>
+    
+    <%- include('partials/summary') %>
+    
+    <%- include('partials/charts') %>
+
+    <%- include('partials/filters') %>
+
+    <% for (const [siteName, siteResult] of Object.entries(results)) { %>
+      <% if (siteResult.violations.length > 0) { %>
+        <%- include('partials/site-section', { 
+          siteName, 
+          siteResult 
+        }) %>
+      <% } %>
+    <% } %>
+  </div>
+</body>
+</html>

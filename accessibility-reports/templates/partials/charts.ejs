@@ -1,0 +1,38 @@
+<div class="tab-container">
+    <div class="tabs">
+      <div id="defaultTab" class="tab active" onclick="switchTab(event, 'impactTab')">Impact Summary</div>
+      <div class="tab" onclick="switchTab(event, 'wcagTab')">WCAG Rules</div>
+    </div>
+    
+    <div id="impactTab" class="tab-content active">
+      <div class="chart-wrapper">
+        <div class="pie-chart-container">
+          <canvas id="impactChart"></canvas>
+        </div>
+      </div>
+    </div>
+    
+    <div id="wcagTab" class="tab-content">
+      <div class="chart-wrapper">
+        <div class="bar-chart-container">
+          <canvas id="wcagChart"></canvas>
+        </div>
+      </div>
+      <table class="wcag-table">
+        <thead>
+          <tr>
+            <th>Rule</th>
+            <th>Violations</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% reportData.summary.wcagBreakdownArray.forEach(([rule, count]) => { %>
+            <tr>
+              <td class="wcag-rule"><%= rule %></td>
+              <td class="wcag-count"><%= count %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </div>
