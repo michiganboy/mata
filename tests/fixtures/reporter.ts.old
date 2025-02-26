@@ -1,0 +1,1333 @@
+import { AxeResults, Result, NodeResult } from 'axe-core';
+import fs from 'fs';
+import path from 'path';
+
+export interface EnhancedAxeResults extends AxeResults {
+  pageName: string;
+  siteName: string;
+  url: string;
+  browser?: string;
+}
+
+interface EnhancedResultItem extends Result {
+  siteName: string;
+  pageName: string;
+  pageUrl: string;
+  browser?: string;
+}
+
+interface ResultSummary {
+  totalViolations: number;
+  criticalViolations: number;
+  seriousViolations: number;
+  moderateViolations: number;
+  minorViolations: number;
+  uniqueRules: Set<string>;
+  uniquePages: Set<string>;
+  wcagBreakdown: Map<string, number>;
+  browsers: Set<string>;
+}
+
+interface SiteResultSummary {
+  [siteName: string]: {
+    violations: EnhancedResultItem[];
+    summary: ResultSummary;
+  };
+}
+
+export function generateAccessibilityReport(
+  results: EnhancedAxeResults[],
+  browserName: string
+): number {
+  console.log(`\n=== BROWSER ${browserName} REPORTING ${results.length} RESULTS ===`);
+
+  // Create directory for results if it doesn't exist
+  const resultsDir = path.join(process.cwd(), 'accessibility-reports', 'browser-results');
+  if (!fs.existsSync(resultsDir)) {
+    fs.mkdirSync(resultsDir, { recursive: true });
+  }
+
+  // Tag each result with browser info
+  const taggedResults = results.map(result => ({
+    ...result,
+    browser: browserName
+  }));
+
+  // Save this browser's results to disk
+  const browserResultsFile = path.join(resultsDir, `${browserName}-results.json`);
+  fs.writeFileSync(browserResultsFile, JSON.stringify(taggedResults, null, 2));
+
+  // Read all browser result files
+  const allResults: EnhancedAxeResults[] = [];
+  const browserFiles = fs.readdirSync(resultsDir).filter(file => file.endsWith('-results.json'));
+
+  console.log(`Found ${browserFiles.length} browser result files: ${browserFiles.join(', ')}`);
+
+  for (const file of browserFiles) {
+    try {
+      const fileContent = fs.readFileSync(path.join(resultsDir, file), 'utf8');
+      const fileResults = JSON.parse(fileContent) as EnhancedAxeResults[];
+      const fileBrowser = file.replace('-results.json', '');
+
+      console.log(`Adding ${fileResults.length} results from ${fileBrowser}`);
+      allResults.push(...fileResults);
+    } catch (error) {
+      console.error(`Error processing browser file ${file}:`, error);
+    }
+  }
+
+  console.log(`Total combined results: ${allResults.length}`);
+
+  // Generate the combined report
+  return generateCombinedReport(allResults);
+}
+
+function generateCombinedReport(allResults: EnhancedAxeResults[]): number {
+  const consolidatedResult: SiteResultSummary = {};
+  const globalSummary: ResultSummary = {
+    totalViolations: 0,
+    criticalViolations: 0,
+    seriousViolations: 0,
+    moderateViolations: 0,
+    minorViolations: 0,
+    uniqueRules: new Set<string>(),
+    uniquePages: new Set<string>(),
+    wcagBreakdown: new Map<string, number>(),
+    browsers: new Set<string>()
+  };
+
+  // First pass: Process all results and build consolidated result
+  for (const result of allResults) {
+    if (!consolidatedResult[result.siteName]) {
+      consolidatedResult[result.siteName] = {
+        violations: [],
+        summary: {
+          totalViolations: 0,
+          criticalViolations: 0,
+          seriousViolations: 0,
+          moderateViolations: 0,
+          minorViolations: 0,
+          uniqueRules: new Set<string>(),
+          uniquePages: new Set<string>(),
+          wcagBreakdown: new Map<string, number>(),
+          browsers: new Set<string>()
+        }
+      };
+    }
+
+    const siteResult = consolidatedResult[result.siteName];
+    const siteSummary = siteResult.summary;
+
+    // Update site level browser information
+    if (result.browser) {
+      siteSummary.browsers.add(result.browser);
+      globalSummary.browsers.add(result.browser);
+    }
+
+    // Update site level page information
+    siteSummary.uniquePages.add(result.url);
+    globalSummary.uniquePages.add(result.url);
+
+    // Process violations only
+    if (Array.isArray(result.violations)) {
+      result.violations.forEach((item) => {
+        // Create a unique key for each violation to check for duplicates
+        const violationKey = `${item.id}_${result.url}_${item.nodes.map(n => n.target.join(',')).join('|')}`;
+
+        // Check if this exact violation already exists
+        const exists = siteResult.violations.some(
+          existing => {
+            const existingKey = `${existing.id}_${existing.pageUrl}_${existing.nodes.map(n => n.target.join(',')).join('|')}`;
+            return existingKey === violationKey;
+          }
+        );
+
+        if (!exists) {
+          const enhancedItem: EnhancedResultItem = {
+            ...item,
+            siteName: result.siteName,
+            pageName: result.pageName,
+            pageUrl: result.url,
+            browser: result.browser
+          };
+          
+          siteResult.violations.push(enhancedItem);
+          
+          // Update rule count
+          siteSummary.uniqueRules.add(item.id);
+          globalSummary.uniqueRules.add(item.id);
+          
+          // Update impact counts
+          siteSummary.totalViolations++;
+          globalSummary.totalViolations++;
+          
+          if (item.impact === 'critical') {
+            siteSummary.criticalViolations++;
+            globalSummary.criticalViolations++;
+          } else if (item.impact === 'serious') {
+            siteSummary.seriousViolations++;
+            globalSummary.seriousViolations++;
+          } else if (item.impact === 'moderate') {
+            siteSummary.moderateViolations++;
+            globalSummary.moderateViolations++;
+          } else if (item.impact === 'minor') {
+            siteSummary.minorViolations++;
+            globalSummary.minorViolations++;
+          }
+          
+          // Update WCAG breakdown
+          if (Array.isArray(item.tags)) {
+            item.tags
+              .filter(tag => tag.startsWith('wcag') || tag.startsWith('best-practice'))
+              .forEach(wcagTag => {
+                siteSummary.wcagBreakdown.set(
+                  wcagTag,
+                  (siteSummary.wcagBreakdown.get(wcagTag) || 0) + 1
+                );
+                globalSummary.wcagBreakdown.set(
+                  wcagTag,
+                  (globalSummary.wcagBreakdown.get(wcagTag) || 0) + 1
+                );
+              });
+          }
+        }
+      });
+    }
+  }
+
+  const customReportHTML = generateCustomReport(consolidatedResult, globalSummary);
+
+  const reportsDir = path.join(process.cwd(), 'accessibility-reports');
+  if (!fs.existsSync(reportsDir)) {
+    fs.mkdirSync(reportsDir);
+  }
+
+  const reportPath = path.join(
+    reportsDir,
+    'consolidated-multi-browser-accessibility-report.html'
+  );
+  fs.writeFileSync(reportPath, customReportHTML);
+
+  // Also generate a summary CSV report
+  const csvReportPath = path.join(
+    reportsDir,
+    'accessibility-summary.csv'
+  );
+  generateCSVReport(consolidatedResult, globalSummary, csvReportPath);
+
+  const violationsCsvPath = path.join(
+    reportsDir,
+    'accessibility-violations.csv'
+  );
+  generateViolationsCSVReport(consolidatedResult, violationsCsvPath);
+
+  return globalSummary.totalViolations;
+}
+
+function generateCSVReport(
+  results: SiteResultSummary, 
+  globalSummary: ResultSummary,
+  outputPath: string
+): void {
+  let csv = 'Site,Total Pages,Total Violations,Critical,Serious,Moderate,Minor,Unique Rules,Browsers\n';
+  
+  // Add row for each site
+  for (const [siteName, siteResult] of Object.entries(results)) {
+    csv += `${siteName},`;
+    csv += `${siteResult.summary.uniquePages.size},`;
+    csv += `${siteResult.summary.totalViolations},`;
+    csv += `${siteResult.summary.criticalViolations},`;
+    csv += `${siteResult.summary.seriousViolations},`;
+    csv += `${siteResult.summary.moderateViolations},`;
+    csv += `${siteResult.summary.minorViolations},`;
+    csv += `${siteResult.summary.uniqueRules.size},`;
+    csv += `"${Array.from(siteResult.summary.browsers).join(', ')}"\n`;
+  }
+  
+  // Add global summary row
+  csv += `TOTALS,`;
+  csv += `${globalSummary.uniquePages.size},`;
+  csv += `${globalSummary.totalViolations},`;
+  csv += `${globalSummary.criticalViolations},`;
+  csv += `${globalSummary.seriousViolations},`;
+  csv += `${globalSummary.moderateViolations},`;
+  csv += `${globalSummary.minorViolations},`;
+  csv += `${globalSummary.uniqueRules.size},`;
+  csv += `"${Array.from(globalSummary.browsers).join(', ')}"\n`;
+  
+  fs.writeFileSync(outputPath, csv);
+}
+
+function generateViolationsCSVReport(
+  results: SiteResultSummary,
+  outputPath: string
+): void {
+  // Create CSV header
+  let csv = 'Site,Page,URL,Browser,Rule ID,Impact,WCAG Tags,Description,Elements,Fix Suggestion\n';
+  
+  // Add each violation as a row
+  for (const [siteName, siteResult] of Object.entries(results)) {
+    for (const violation of siteResult.violations) {
+      // Basic fields
+      csv += `"${siteName}",`;
+      csv += `"${violation.pageName.replace(/"/g, '""')}",`;
+      csv += `"${violation.pageUrl.replace(/"/g, '""')}",`;
+      csv += `"${violation.browser || 'unknown'}",`;
+      csv += `"${violation.id}",`;
+      csv += `"${violation.impact}",`;
+      
+      // WCAG tags
+      const wcagTags = violation.tags
+        .filter(tag => tag.startsWith('wcag') || tag.startsWith('best-practice'))
+        .join(', ');
+      csv += `"${wcagTags}",`;
+      
+      // Description - clean quotes
+      const safeDescription = violation.description ? 
+        violation.description.replace(/"/g, '""') : '';
+      csv += `"${safeDescription}",`;
+      
+      // Elements - limit to first 10 for readability
+      const elementTexts = violation.nodes.slice(0, 10).map(node => 
+        node.target.join(' ').replace(/"/g, '""')
+      );
+      let elementText = elementTexts.join(' | ');
+      if (violation.nodes.length > 10) {
+        elementText += ` ... (${violation.nodes.length - 10} more)`;
+      }
+      csv += `"${elementText}",`;
+      
+      // Fix suggestion - clean quotes and newlines
+      let fixSuggestion = '';
+      if (violation.nodes && violation.nodes.length > 0 && violation.nodes[0].failureSummary) {
+        fixSuggestion = violation.nodes[0].failureSummary
+          .replace(/Fix any of the following:|Fix all of the following:/, '')
+          .trim()
+          .replace(/\n/g, ' ')
+          .replace(/"/g, '""');
+      }
+      csv += `"${fixSuggestion}"\n`;
+    }
+  }
+  
+  fs.writeFileSync(outputPath, csv);
+}
+
+// Helper functions for node formatting and string manipulation
+function formatNodes(nodes: NodeResult[]): string {
+  if (nodes.length <= 3) {
+    // If 3 or fewer elements, just show them all
+    return nodes
+      .map(node => {
+        const safeTarget = node.target
+          .map(part => String(part).replace(/</g, '&lt;').replace(/>/g, '&gt;'))
+          .join(' ');
+        
+        return `<span class="element" title="${safeTarget}">${safeTarget}</span>`;
+      })
+      .join('');
+  } else {
+    // For more than 3 elements, show first 3 with expand capability
+    const visibleElements = nodes.slice(0, 3).map(node => {
+      const safeTarget = node.target
+        .map(part => String(part).replace(/</g, '&lt;').replace(/>/g, '&gt;'))
+        .join(' ');
+      
+      return `<span class="element" title="${safeTarget}">${safeTarget}</span>`;
+    }).join('');
+    
+    // Generate the hidden elements (all elements for completeness)
+    const allElements = nodes.map(node => {
+      const safeTarget = node.target
+        .map(part => String(part).replace(/</g, '&lt;').replace(/>/g, '&gt;'))
+        .join(' ');
+      
+      return `<span class="element" title="${safeTarget}">${safeTarget}</span>`;
+    }).join('');
+    
+    // Create unique ID for this node group
+    const uniqueId = `elements-${Math.random().toString(36).substring(2, 11)}`;
+    
+    return `
+      <div class="element-container">
+        <div class="element-visible">
+          ${visibleElements}
+          <button class="element-expand-btn" onclick="toggleElements('${uniqueId}')" aria-expanded="false" aria-controls="${uniqueId}">
+            +${nodes.length - 3} more elements
+          </button>
+        </div>
+        <div id="${uniqueId}" class="element-hidden">
+          ${allElements}
+          <button class="element-collapse-btn" onclick="toggleElements('${uniqueId}')" aria-expanded="true">
+            Show less
+          </button>
+        </div>
+      </div>
+    `;
+  }
+}
+
+// Helper function to truncate long strings but keep information
+function truncateString(str: string, maxLength: number = 100): string {
+  if (!str) return '';
+  if (str.length <= maxLength) return str;
+  return str.substring(0, maxLength) + '...';
+}
+
+// Main function to generate the HTML report
+function generateCustomReport(
+  results: SiteResultSummary,
+  globalSummary: ResultSummary
+): string {
+  let html = `
+    <html>
+      <head>
+        <title>Multi-Site Accessibility Audit Report</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body { 
+            font-family: Arial, sans-serif; 
+            line-height: 1.6; 
+            color: #333;
+            padding: 0;
+            margin: 0;
+          }
+          .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+          h1, h2, h3 { color: #2c3e50; }
+          .site-section {
+            margin-bottom: 40px;
+          }
+          .site-banner { 
+            background-color: #3498db; 
+            color: white; 
+            padding: 20px; 
+            margin-bottom: 20px; 
+            border-radius: 5px; 
+          }
+          .site-banner h2 { margin: 0; }
+          .site-stats { 
+            display: flex; 
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px; 
+          }
+          .site-stat { 
+            background-color: rgba(255,255,255,0.2); 
+            padding: 10px; 
+            border-radius: 5px; 
+          }
+          .summary-container {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          }
+          .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+          }
+          .summary-card {
+            background-color: white;
+            border-radius: 5px;
+            padding: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+          }
+          .summary-title {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+          }
+          .summary-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c3e50;
+          }
+          .summary-subtitle {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+          }
+          .summary-chart {
+            width: 100%;
+            height: 200px;
+            margin-top: 10px;
+          }
+          .filters-sticky { 
+            position: sticky; 
+            top: 0; 
+            z-index: 2; 
+            background: white; 
+            padding: 15px 0; 
+            border-bottom: 1px solid #ddd; 
+          }
+          .filters { 
+            background-color: #f5f5f5; 
+            padding: 15px; 
+            border-radius: 5px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+          }
+          .filter-group { 
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+          .filter-group label { 
+            font-weight: bold;
+            white-space: nowrap;
+          }
+          select { 
+            padding: 8px; 
+            border-radius: 4px; 
+            border: 1px solid #ddd; 
+            min-width: 180px;
+            background-color: white;
+          }
+          table { 
+            border-collapse: collapse; 
+            width: 100%; 
+            margin-bottom: 20px; 
+            table-layout: fixed;
+          }
+          th, td { 
+            border: 1px solid #666; 
+            padding: 12px; 
+            text-align: left; 
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            max-width: 100%;
+            overflow: hidden;
+          }
+          th { 
+            background-color: #f2f2f2; 
+            position: sticky; 
+            top: 0; 
+            z-index: 1; 
+          }
+          .violation { background-color: #ffeded; }
+          .impact-critical { color: #d00; font-weight: bold; }
+          .impact-serious { color: #d60; font-weight: bold; }
+          .impact-moderate { color: #850; font-weight: bold; }
+          .impact-minor { color: #040; }
+          .element { 
+            font-family: monospace; 
+            background-color: #f8f8f8; 
+            padding: 2px 4px; 
+            border-radius: 4px; 
+            display: block; 
+            margin: 2px 0;
+            white-space: normal;
+            text-overflow: ellipsis;
+            max-width: 100%;
+          }
+          .element-count {
+            display: block;
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 4px;
+            font-style: italic;
+          }
+          .learn-more { text-decoration: none; color: #0077be; }
+          .learn-more:hover { text-decoration: underline; }
+          .fix-suggestion { font-style: italic; color: #555; }
+          .hidden { display: none; }
+          .page-link { color: #0077be; text-decoration: none; }
+          .page-link:hover { text-decoration: underline; }
+          .browser-tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            color: white;
+          }
+          .browser-chromium { background-color: #4285F4; }
+          .browser-firefox { background-color: #FF9400; }
+          .browser-webkit { background-color: #1A73E8; }
+          .custom-table-container {
+            width: 100%;
+            overflow-x: auto;
+          }
+          .custom-table {
+            width: 100%;
+          }
+          .impact-summary {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+          }
+          .impact-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9em;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .critical-badge { background-color: #dc3545; }
+          .serious-badge { background-color: #fd7e14; }
+          .moderate-badge { background-color: #ffc107; color: #333; }
+          .minor-badge { background-color: #28a745; }
+          .export-btns {
+            margin: 15px 0;
+          }
+          .export-btn {
+            padding: 8px 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+          }
+          .export-btn:hover {
+            background-color: #2980b9;
+          }
+          .tab-container {
+            margin-top: 20px;
+          }
+          .tabs {
+            display: flex;
+            margin-bottom: -1px;
+          }
+          .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            background-color: #f8f8f8;
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0;
+          }
+          .tab.active {
+            background-color: white;
+            border-bottom: 1px solid white;
+          }
+          .tab-content {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 0 0 5px 5px;
+          }
+          .tab-content.active {
+            display: block;
+          }
+          .wcag-table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+          }
+          .wcag-table th, .wcag-table td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+          }
+          .wcag-table th {
+            background-color: #f2f2f2;
+          }
+          .wcag-rule {
+            font-weight: bold;
+          }
+          .wcag-count {
+            text-align: center;
+          }
+
+          /* Chart size adjustments */
+          .summary-chart-container {
+            width: 100%;
+            height: 300px;
+            max-height: 300px;
+            position: relative;
+          }
+
+          .chart-wrapper {
+            display: flex;
+            justify-content: center;
+          }
+
+          .pie-chart-container {
+            width: 400px;
+            height: 300px;
+            padding: 10px;
+          }
+
+          .bar-chart-container {
+            width: 80%;
+            max-width: 800px;
+            height: 300px;
+            padding: 10px;
+          }
+
+          /* Expandable elements styling */
+          .element-container {
+            position: relative;
+            width: 100%;
+          }
+
+          .element-visible {
+            display: block;
+          }
+
+          .element-hidden {
+            display: none;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+          }
+
+          .element-expand-btn {
+            display: inline-block;
+            background-color: #f0f0f0;
+            color: #666;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 5px;
+          }
+
+          .element-collapse-btn {
+            display: block;
+            background-color: #f0f0f0;
+            color: #666;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
+          }
+
+          .element-expand-btn:hover, .element-collapse-btn:hover {
+            background-color: #e0e0e0;
+          }
+
+          /* Export buttons styling */
+          .export-btns {
+            margin: 15px 0;
+            display: flex;
+            gap: 10px;
+          }
+
+          .export-btn {
+            padding: 8px 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+          }
+
+          .export-btn svg {
+            width: 16px;
+            height: 16px;
+          }
+
+          .export-btn:hover {
+            background-color: #2980b9;
+          }
+        </style>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+        <script>
+          // Data for charts - will be populated in HTML generation
+          const impactData = {
+            labels: ['Critical', 'Serious', 'Moderate', 'Minor'],
+            datasets: [{
+              label: 'Violations by Impact',
+              data: [
+                ${globalSummary.criticalViolations},
+                ${globalSummary.seriousViolations},
+                ${globalSummary.moderateViolations},
+                ${globalSummary.minorViolations}
+              ],
+              backgroundColor: [
+                '#dc3545',
+                '#fd7e14',
+                '#ffc107',
+                '#28a745'
+              ]
+            }]
+          };
+
+          // WCAG violation data
+          const wcagData = {
+            labels: [${Array.from(globalSummary.wcagBreakdown.keys()).map(key => `'${key}'`).join(', ')}],
+            datasets: [{
+              label: 'Violations by WCAG Rule',
+              data: [${Array.from(globalSummary.wcagBreakdown.values()).join(', ')}],
+              backgroundColor: '#3498db'
+            }]
+          };
+
+          function getUniqueValues(selector, column) {
+            const values = new Set();
+            // Check all tables across all sites for violations
+            document.querySelectorAll('table[data-type="violations"] tbody tr').forEach(row => {
+              const cell = row.cells[column];
+              if (cell && cell.textContent) {
+                if (selector === 'wcagFilter') {
+                  const wcagTags = cell.textContent.split(', ');
+                  wcagTags.forEach(tag => {
+                    if (tag && (tag.startsWith('wcag') || tag.startsWith('best-practice'))) {
+                      values.add(tag.trim());
+                    }
+                  });
+                } else {
+                  values.add(cell.textContent.trim());
+                }
+              }
+            });
+            return Array.from(values).sort();
+          }
+
+          function populateFilters() {
+            // Site filter
+            const siteFilter = document.getElementById('siteFilter');
+            const siteValues = new Set();
+            document.querySelectorAll('.site-section').forEach(section => {
+              siteValues.add(section.getAttribute('data-site'));
+            });
+            siteFilter.innerHTML = '<option value="all">All Sites</option>';
+            Array.from(siteValues).sort().forEach(value => {
+              const option = document.createElement('option');
+              option.value = value;
+              option.textContent = value;
+              siteFilter.appendChild(option);
+            });
+
+            // Browser filter (column 0)
+            const browserFilter = document.getElementById('browserFilter');
+            const browserValues = getUniqueValues('browserFilter', 0);
+            browserFilter.innerHTML = '<option value="all">All Browsers</option>';
+            browserValues.forEach(value => {
+              const option = document.createElement('option');
+              option.value = value;
+              option.textContent = value;
+              browserFilter.appendChild(option);
+            });
+
+            // Page filter (column 1)
+            const pageFilter = document.getElementById('pageFilter');
+            const pageValues = getUniqueValues('pageFilter', 1);
+            pageFilter.innerHTML = '<option value="all">All Pages</option>';
+            pageValues.forEach(value => {
+              const option = document.createElement('option');
+              option.value = value;
+              option.textContent = value;
+              pageFilter.appendChild(option);
+            });
+
+            // Impact filter (column 5)
+            const impactFilter = document.getElementById('impactFilter');
+            const impactValues = getUniqueValues('impactFilter', 5);
+            impactFilter.innerHTML = '<option value="all">All Impacts</option>';
+            impactValues.forEach(value => {
+              const option = document.createElement('option');
+              option.value = value;
+              option.textContent = value;
+              impactFilter.appendChild(option);
+            });
+
+            // WCAG filter (column 4)
+            const wcagFilter = document.getElementById('wcagFilter');
+            const wcagValues = getUniqueValues('wcagFilter', 4);
+            wcagFilter.innerHTML = '<option value="all">All WCAG</option>';
+            wcagValues.forEach(value => {
+              const option = document.createElement('option');
+              option.value = value;
+              option.textContent = value;
+              wcagFilter.appendChild(option);
+            });
+          }
+
+          function filterTables() {
+            const siteFilter = document.getElementById('siteFilter').value;
+            const browserFilter = document.getElementById('browserFilter').value;
+            const pageFilter = document.getElementById('pageFilter').value;
+            const impactFilter = document.getElementById('impactFilter').value;
+            const wcagFilter = document.getElementById('wcagFilter').value;
+            
+            // First filter site sections
+            document.querySelectorAll('.site-section').forEach(section => {
+              const siteName = section.getAttribute('data-site');
+              const showSite = siteFilter === 'all' || siteFilter === siteName;
+              section.classList.toggle('hidden', !showSite);
+            });
+            
+            // Then filter rows within visible tables
+            document.querySelectorAll('.site-section:not(.hidden) table').forEach(table => {
+              const rows = table.querySelectorAll('tbody tr');
+              
+              rows.forEach(row => {
+                const browser = row.cells[0].textContent.trim();
+                const pageName = row.cells[1].textContent.trim();
+                const impact = row.cells[5].textContent.trim();
+                const wcagTags = row.cells[4].textContent.split(', ');
+
+                const matchesFilters = (
+                  (browserFilter === 'all' || browser === browserFilter) &&
+                  (pageFilter === 'all' || pageName === pageFilter) &&
+                  (impactFilter === 'all' || impact === impactFilter) &&
+                  (wcagFilter === 'all' || wcagTags.some(tag => tag.trim() === wcagFilter))
+                );
+                
+                row.classList.toggle('hidden', !matchesFilters);
+              });
+            });
+
+            updateVisibleCounts();
+          }
+
+          function updateVisibleCounts() {
+            document.querySelectorAll('.site-section:not(.hidden)').forEach(section => {
+              const banner = section.querySelector('.site-banner');
+              const violationsTable = section.querySelector('table[data-type="violations"]');
+              
+              if (violationsTable) {
+                const visibleViolations = violationsTable.querySelectorAll('tbody tr:not(.hidden)').length;
+                banner.querySelector('.violations-count').textContent = \`Filtered Violations: \${visibleViolations}\`;
+              }
+            });
+          }
+
+          function exportToCSV() {
+            window.open('accessibility-summary.csv', '_blank');
+          }
+
+          function switchTab(evt, tabName) {
+            // Hide all tab content
+            const tabcontent = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabcontent.length; i++) {
+              tabcontent[i].classList.remove("active");
+            }
+
+            // Remove active class from all tabs
+            const tabs = document.getElementsByClassName("tab");
+            for (let i = 0; i < tabs.length; i++) {
+              tabs[i].classList.remove("active");
+            }
+
+            // Show the specific tab content
+            document.getElementById(tabName).classList.add("active");
+            
+            // Add active class to the button that opened the tab
+            evt.currentTarget.classList.add("active");
+          }
+
+          function initCharts() {
+            // Impact Chart
+            const impactCtx = document.getElementById('impactChart').getContext('2d');
+            new Chart(impactCtx, {
+              type: 'pie',
+              data: impactData,
+              options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                  legend: {
+                    position: 'right',
+                    labels: {
+                      boxWidth: 15,
+                      font: {
+                        size: 12
+                      }
+                    }
+                  },
+                  title: {
+                    display: true,
+                    text: 'Violations by Impact Level',
+                    font: {
+                      size: 16,
+                      weight: 'bold'
+                    }
+                  }
+                }
+              }
+            });
+
+            // WCAG Chart - Limit to top 10 rules for better visibility
+            const sortedWcagEntries = Array.from(globalSummary.wcagBreakdown.entries())
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 10); // Top 10 rules
+
+            const wcagLabels = sortedWcagEntries.map(entry => entry[0]);
+            const wcagData = sortedWcagEntries.map(entry => entry[1]);
+
+            const wcagCtx = document.getElementById('wcagChart').getContext('2d');
+            new Chart(wcagCtx, {
+              type: 'bar',
+              data: {
+                labels: wcagLabels,
+                datasets: [{
+                  label: 'Violations Count',
+                  data: wcagData,
+                  backgroundColor: '#3498db'
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                indexAxis: 'y', // Horizontal bar chart
+                plugins: {
+                  legend: {
+                    display: false
+                  },
+                  title: {
+                    display: true,
+                    text: 'Top 10 WCAG Violations',
+                    font: {
+                      size: 16,
+                      weight: 'bold'
+                    }
+                  }
+                },
+                scales: {
+                  y: {
+                    ticks: {
+                      font: {
+                        size: 11
+                      }
+                    }
+                  },
+                  x: {
+                    beginAtZero: true,
+                    title: {
+                      display: true,
+                      text: 'Number of Violations'
+                    }
+                  }
+                }
+              }
+            });
+          }
+
+          document.addEventListener('DOMContentLoaded', () => {
+            populateFilters();
+            document.querySelectorAll('select').forEach(select => {
+              select.addEventListener('change', filterTables);
+            });
+            
+            // Initialize charts
+            initCharts();
+            
+            // Set the default tab to active
+            document.getElementById('defaultTab').click();
+            
+            // Initial filter to set counts
+            updateVisibleCounts();
+            
+            // Add export button event listener
+            document.getElementById('exportCSV').addEventListener('click', exportToCSV);
+            document.getElementById('exportViolationsCSV').addEventListener('click', exportViolationsToCSV);
+
+            updateChartSizes();
+          });
+
+          function toggleElements(id) {
+            const hiddenContent = document.getElementById(id);
+            const button = document.querySelector(\`[aria-controls="\${id}"]\`);
+            
+            if (hiddenContent.style.display === 'block') {
+              hiddenContent.style.display = 'none';
+              button.setAttribute('aria-expanded', 'false');
+            } else {
+              hiddenContent.style.display = 'block';
+              button.setAttribute('aria-expanded', 'true');
+            }
+          }
+
+          function exportViolationsToCSV() {
+            window.open('accessibility-violations.csv', '_blank');
+          }
+
+          function updateChartSizes() {
+            // Resize charts to fit container if necessary
+            if (window.Chart && window.Chart.instances) {
+              Object.values(window.Chart.instances).forEach(function(chartInstance) {
+                chartInstance.resize();
+              });
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <div class="container">
+          <h1>Multi-Site Accessibility Audit Report</h1>
+          <p>Generated on: ${new Date().toISOString()}</p>
+
+          <div class="summary-container">
+            <h2>Executive Summary</h2>
+            
+            <div class="summary-grid">
+              <div class="summary-card">
+                <div>
+                  <div class="summary-title">Total Violations</div>
+                  <div class="summary-value">${globalSummary.totalViolations}</div>
+                </div>
+                <div class="summary-subtitle">Across ${globalSummary.uniquePages.size} pages</div>
+              </div>
+              
+              <div class="summary-card">
+                <div>
+                  <div class="summary-title">Unique WCAG Rules Violated</div>
+                  <div class="summary-value">${globalSummary.uniqueRules.size}</div>
+                </div>
+                <div class="summary-subtitle">Across ${Array.from(globalSummary.browsers).join(', ')} browsers</div>
+              </div>
+              
+              <div class="summary-card">
+                <div>
+                  <div class="summary-title">Impact Breakdown</div>
+                  <div class="impact-summary">
+                    <span class="impact-badge critical-badge">${globalSummary.criticalViolations}</span>
+                    <span class="impact-badge serious-badge">${globalSummary.seriousViolations}</span>
+                    <span class="impact-badge moderate-badge">${globalSummary.moderateViolations}</span>
+                    <span class="impact-badge minor-badge">${globalSummary.minorViolations}</span>
+                  </div>
+                </div>
+                <div class="summary-subtitle">Critical, Serious, Moderate, Minor</div>
+              </div>
+              
+              <div class="summary-card">
+                <div>
+                  <div class="summary-title">Sites Tested</div>
+                  <div class="summary-value">${Object.keys(results).length}</div>
+                </div>
+                <div class="summary-subtitle">${Object.keys(results).join(', ')}</div>
+              </div>
+            </div>
+            
+            <div class="export-btns">
+              <button id="exportViolationsCSV" class="export-btn" onclick="exportViolationsToCSV()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Export Violations CSV
+              </button>
+              <button id="exportSummaryCSV" class="export-btn" onclick="exportToCSV()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                Export Summary CSV
+              </button>
+            </div>
+
+            <div class="tab-container">
+              <div class="tabs">
+                <div id="defaultTab" class="tab active" onclick="switchTab(event, 'impactTab')">Impact Summary</div>
+                <div class="tab" onclick="switchTab(event, 'wcagTab')">WCAG Rules</div>
+              </div>
+              
+              <div id="impactTab" class="tab-content active">
+                <div class="chart-wrapper">
+                  <div class="pie-chart-container">
+                    <canvas id="impactChart"></canvas>
+                  </div>
+                </div>
+              </div>
+
+              <div id="wcagTab" class="tab-content">
+                <div class="chart-wrapper">
+                  <div class="bar-chart-container">
+                    <canvas id="wcagChart"></canvas>
+                  </div>
+                </div>
+                <table class="wcag-table">
+                  <thead>
+                    <tr>
+                      <th>Rule</th>
+                      <th>Violations</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${Array.from(globalSummary.wcagBreakdown.entries())
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([rule, count]) => `
+                      <tr>
+                        <td class="wcag-rule">${rule}</td>
+                        <td class="wcag-count">${count}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="filters-sticky">
+            <div class="filters">
+              <div class="filter-group">
+                <label for="siteFilter">Site:</label>
+                <select id="siteFilter">
+                  <option value="all">All Sites</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label for="browserFilter">Browser:</label>
+                <select id="browserFilter">
+                  <option value="all">All Browsers</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label for="pageFilter">Page:</label>
+                <select id="pageFilter">
+                  <option value="all">All Pages</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label for="impactFilter">Impact:</label>
+                <select id="impactFilter">
+                  <option value="all">All Impacts</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label for="wcagFilter">WCAG:</label>
+                <select id="wcagFilter">
+                  <option value="all">All WCAG</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          ${Object.entries(results).map(([siteName, siteResultData]) => {
+            // Skip sites with no violations
+            if (siteResultData.violations.length === 0) {
+              return '';
+            }
+
+            // Get base domain (safely)
+            let baseDomain = "unknown";
+            try {
+              if (siteResultData.violations.length > 0) {
+                baseDomain = new URL(siteResultData.violations[0].pageUrl).hostname;
+              }
+            } catch (e) {
+              console.error("Error parsing URL:", e);
+            }
+
+            const totalPages = siteResultData.summary.uniquePages.size;
+
+            return `
+              <div class="site-section" data-site="${siteName}">
+                <div class="site-banner">
+                  <h2>${siteName} (${baseDomain})</h2>
+                  <div class="site-stats">
+                    <span class="site-stat">Pages Scanned: ${totalPages}</span>
+                    <span class="site-stat violations-count">Total Violations: ${siteResultData.violations.length}</span>
+                    <span class="site-stat">Critical: ${siteResultData.summary.criticalViolations}</span>
+                    <span class="site-stat">Serious: ${siteResultData.summary.seriousViolations}</span>
+                    <span class="site-stat">Moderate: ${siteResultData.summary.moderateViolations}</span>
+                    <span class="site-stat">Minor: ${siteResultData.summary.minorViolations}</span>
+                    <span class="site-stat">Unique Rules: ${siteResultData.summary.uniqueRules.size}</span>
+                  </div>
+                </div>
+                
+                <h3>Violations</h3>
+                <div class="custom-table-container">
+                  <table data-site="${siteName}" data-type="violations" class="custom-table">
+                    <thead>
+                      <tr>
+                        <th style="width: 7%;">Browser</th>
+                        <th style="width: 10%;">Page Name</th>
+                        <th style="width: 10%;">Path</th>
+                        <th style="width: 10%;">Rule ID</th>
+                        <th style="width: 10%;">WCAG</th>
+                        <th style="width: 8%;">Impact</th>
+                        <th style="width: 20%;">Description</th>
+                        <th style="width: 15%;">Elements</th>
+                        <th style="width: 10%;">Fix Suggestion</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${siteResultData.violations.map(violation => {
+                        let pathname = "";
+                        try {
+                          pathname = new URL(violation.pageUrl).pathname;
+                        } catch (e) {
+                          pathname = violation.pageUrl;
+                        }
+
+                        const browser = violation.browser || 'unknown';
+
+                        // Clean up fix suggestion
+                        let fixSuggestion = '';
+                        if (violation.nodes && violation.nodes.length > 0 && violation.nodes[0].failureSummary) {
+                          fixSuggestion = violation.nodes[0].failureSummary
+                            .replace(/Fix any of the following:|Fix all of the following:/, '')
+                            .trim();
+
+                          // Filter out problematic lines
+                          const lines = fixSuggestion.split('\n').filter(line =>
+                            !line.includes('Element does not have') &&
+                            !line.includes('same text as the summary attribute')
+                          );
+
+                          fixSuggestion = lines.join('<br>');
+                        }
+
+                        // Sanitize the description
+                        let safeDescription = '';
+                        if (typeof violation.description === 'string') {
+                          safeDescription = violation.description
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;');
+                        }
+
+                        return `
+                          <tr class="violation">
+                            <td><span class="browser-tag browser-${browser.toLowerCase()}">${browser}</span></td>
+                            <td>${violation.pageName}</td>
+                            <td><a href="${violation.pageUrl}" class="page-link" target="_blank">${pathname}</a></td>
+                            <td>${violation.id} <a href="https://dequeuniversity.com/rules/axe/4.9/${violation.id}?application=playwright" target="_blank" class="learn-more">Learn More</a></td>
+                            <td>${violation.tags
+                              .filter((tag) => tag.startsWith('wcag') || tag.startsWith('best-practice'))
+                              .join(', ')}</td>
+                            <td class="impact-${violation.impact}">${violation.impact}</td>
+                            <td>${safeDescription}</td>
+                            <td>${formatNodes(violation.nodes)}</td>
+                            <td class="fix-suggestion">${fixSuggestion || 'N/A'}</td>
+                          </tr>
+                        `;
+                      }).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </body>
+    </html>
+  `;
+
+  return html;
+}
