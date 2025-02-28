@@ -105,7 +105,7 @@ export const accessibilityFixture: Fixtures<AccessibilityFixture, AccessibilityD
           }
         }
 
-        console.log(`[${browserName}] Completed all scans (${completedPagesTotal}/${totalPagesAcrossSites}), generating report...`);
+        console.log(`[${browserName}] Completed all scans (${completedPagesTotal}/${totalPagesAcrossSites})`);
         return generateAccessibilityReport(allResults, browserName);
       } catch (error) {
         console.error(`[${browserName}] Error during accessibility testing:`, error);

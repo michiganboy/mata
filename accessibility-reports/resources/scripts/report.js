@@ -17,6 +17,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Resize charts to fit properly
   updateChartSizes();
+  
+  // Also re-render after a slight delay to ensure all styles are applied
+  setTimeout(updateChartSizes, 500);
 });
 
 // Function to initialize charts
@@ -136,11 +139,11 @@ function toggleElements(id) {
 
 // Function to export CSV data
 function exportViolationsToCSV() {
-  window.open("../accessibility-violations.csv", "_blank");
+  window.open("accessibility-violations.csv", "_blank");
 }
 
 function exportToCSV() {
-  window.open("../accessibility-summary.csv", "_blank");
+  window.open("accessibility-summary.csv", "_blank");
 }
 
 // Function to update chart sizes
@@ -154,6 +157,9 @@ function updateChartSizes() {
     }
   }
 }
+
+// Ensure charts resize properly when window is resized
+window.addEventListener('resize', updateChartSizes);
 
 // Function to switch tabs
 function switchTab(evt, tabName) {
@@ -269,8 +275,9 @@ function getUniqueValues(selector, column) {
     .querySelectorAll('table[data-type="violations"] tbody tr')
     .forEach((row) => {
       const cell = row.cells[column];
-      if (cell && cell.textContent) {
+      if (cell) {
         if (selector === "wcagFilter") {
+          // For WCAG tags, split by comma
           const wcagTags = cell.textContent.split(", ");
           wcagTags.forEach((tag) => {
             if (
@@ -280,7 +287,16 @@ function getUniqueValues(selector, column) {
               values.add(tag.trim());
             }
           });
-        } else {
+        } else if (selector === "browserFilter") {
+          // For browser tags, extract from the spans
+          const browserSpans = cell.querySelectorAll(".browser-tag");
+          browserSpans.forEach(span => {
+            if (span && span.textContent) {
+              values.add(span.textContent.trim());
+            }
+          });
+        } else if (cell.textContent) {
+          // For other columns, just use the text content
           values.add(cell.textContent.trim());
         }
       }
@@ -310,13 +326,27 @@ function filterTables() {
       const rows = table.querySelectorAll("tbody tr");
 
       rows.forEach((row) => {
-        const browser = row.cells[0].textContent.trim();
+        // For browser filter, check if the selected browser appears in this row
+        const browserCell = row.cells[0];
+        let browserMatch = browserFilter === "all";
+        
+        if (!browserMatch && browserCell) {
+          // Get all browser tags in this cell
+          const browserSpans = browserCell.querySelectorAll(".browser-tag");
+          // Check if any of them matches our filter
+          browserSpans.forEach(span => {
+            if (span.textContent.trim() === browserFilter) {
+              browserMatch = true;
+            }
+          });
+        }
+        
         const pageName = row.cells[1].textContent.trim();
         const impact = row.cells[5].textContent.trim();
         const wcagTags = row.cells[4].textContent.split(", ");
 
         const matchesFilters =
-          (browserFilter === "all" || browser === browserFilter) &&
+          browserMatch &&
           (pageFilter === "all" || pageName === pageFilter) &&
           (impactFilter === "all" || impact === impactFilter) &&
           (wcagFilter === "all" ||

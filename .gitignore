@@ -136,3 +136,9 @@ dist
 /blob-report/
 /playwright/.cache/
 /tests/data
+/accessibility-reports/browser-results
+/accessibility-reports/accessibility-violations.csv
+/accessibility-reports/accessibility-summary.csv
+/accessibility-reports/data
+/accessibility-reports/broser-results
+/accessibility-reports/report.html

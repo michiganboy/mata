@@ -21,7 +21,7 @@ test.describe('Accessibility Tests', () => {
       await saveResults(browserName, totalViolations, duration);
       
       if (totalViolations > 0) {
-        console.log(`Found ${totalViolations} accessibility violations in ${browserName}. Check the report for details.`);
+        console.log(`Found ${totalViolations} accessibility violations in ${browserName}`);
       } else {
         console.log(`No accessibility violations found in ${browserName}.`);
       }
