@@ -344,7 +344,7 @@ The report architecture makes it easy to:
 
 ### Cross-Browser Compatibility
 
-The report renders correctly in all major browsers and is responsive for different screen sizes.
+The report renders correctly in all major browsers.
 
 ### Performance and Maintainability
 
