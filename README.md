@@ -34,7 +34,8 @@ This tool is designed to streamline the process of ensuring web accessibility co
    - [Test Results](#test-results)
 6. [Adding a New Site](#adding-a-new-site)
 7. [Customization](#customization)
-8. [Project Structure](#project-structure)
+8. [Report Architecture](#report-architecture)
+9. [Project Structure](#project-structure)
 
 ## Prerequisites
 
@@ -42,6 +43,7 @@ This tool is designed to streamline the process of ensuring web accessibility co
 - npm (v6 or later)
 - Visual Studio Code
 - Playwright Test for VSCode extension
+- Playwright browsers
 
 To install the Playwright Test for VSCode extension:
 
@@ -50,19 +52,38 @@ To install the Playwright Test for VSCode extension:
 3. Search for "Playwright Test"
 4. Click "Install" on the extension by Microsoft
 
+To install the required Playwright browsers:
+
+1. Open a terminal in your project directory
+2. Run the following command:
+   ```
+   npx playwright install
+   ```
+   This will install all the browser binaries needed for testing (Chromium, Firefox, and WebKit)
+
 ## Dependencies
 
 This project relies on the following npm packages:
 
-- `@playwright/test`: For browser automation and testing
-- `@axe-core/playwright`: Integration of axe-core with Playwright
-- `axe-core`: For accessibility testing
-- `axe-html-reporter`: For generating HTML reports of accessibility test results
-- `csv-parser`: For parsing CSV files
-- `dotenv`: For loading environment variables from .env files
-- `cross-env`: For setting environment variables across platforms
-- `ts-node`: For running TypeScript files directly
-- `@types/node`: TypeScript definitions for Node.js
+- **Testing Framework**
+  - `@playwright/test`: For browser automation and testing
+  - `@axe-core/playwright`: Integration of axe-core with Playwright
+  - `axe-core`: For accessibility testing
+
+- **Report Generation**
+  - `ejs`: Template engine for generating HTML reports
+  - `axe-html-reporter`: For generating accessibility report components
+  - `chart.js`: For data visualization in reports
+
+- **Data Processing**
+  - `csv-parser`: For parsing CSV files with test paths
+  - `dotenv`: For loading environment variables from .env files
+
+- **Development Tools**
+  - `cross-env`: For setting environment variables across platforms
+  - `ts-node`: For running TypeScript files directly
+  - `@types/node`: TypeScript definitions for Node.js
+  - `@types/ejs`: TypeScript definitions for EJS templates
 
 ## Installation
 
@@ -226,9 +247,17 @@ Notes:
 
 ### Test Results
 
-After running the tests, an HTML report will be generated in the `accessibility-reports` directory. This report contains detailed information about any accessibility issues found during the test.
+After running the tests, an HTML report will be generated in the `accessibility-reports` directory at `accessibility-reports/report.html`. This report contains detailed information about any accessibility issues found during the test.
 
-Example of a generated report:
+#### Enhanced Accessibility Reporting
+
+The tool generates comprehensive HTML reports that provide detailed insights into accessibility violations:
+
+- **Interactive Filtering**: Filter violations by site, browser, page, impact level, or WCAG rule
+- **Cross-Browser Visualization**: See which violations appear across different browsers with color-coded browser tags
+- **Data Visualization**: Visual charts showing violation distribution by impact level and WCAG rule
+- **Detailed Statistics**: Summary statistics showing total violations, critical/serious/moderate/minor breakdowns
+- **CSV Export**: Export detailed violation data or summary statistics to CSV for further analysis
 
 ![image](images/report.png)
 
@@ -241,6 +270,15 @@ This report provides an overview of the accessibility issues found, including:
   - The impact level of the violation
   - The HTML element causing the violation
 - Detailed descriptions of each violation and suggestions for fixing them
+
+## Browser Support
+
+The tool runs tests across multiple browsers simultaneously:
+- Chromium (Chrome/Edge)
+- Firefox
+- WebKit (Safari)
+
+The report clearly identifies browser-specific issues, allowing you to prioritize fixes for issues that affect all browsers or focus on platform-specific problems.
 
 ## Adding a New Site
 
@@ -278,6 +316,47 @@ This report provides an overview of the accessibility issues found, including:
 - Modify the CSV files to add, remove, or change the pages to be tested for each site.
 - To change the default rulesets, modify the `defaultRulesets` array in `tests/fixtures/accessibility.ts`.
 
+## Report Architecture
+
+The reporting system is designed to be modular, maintainable, and easy to extend:
+
+### Modular EJS Templates
+
+The HTML report is generated using EJS templates broken down into reusable components:
+- Each UI section is in a separate partial template
+- Templates are composed hierarchically for easy maintenance
+- Styling and scripts are kept separate from markup
+
+### Separation of Concerns
+
+- **Data Processing**: Report data is generated in TypeScript (reporter.ts)
+- **Presentation**: HTML layout and structure defined in EJS templates
+- **Styling**: CSS handles all visual presentation
+- **Interactivity**: JavaScript provides filtering and chart features
+
+### Easy to Extend and Customize
+
+The report architecture makes it easy to:
+- Add new sections or visualizations
+- Customize the appearance with CSS
+- Update filters or sorting mechanisms
+- Add new browser support without code changes
+
+### Cross-Browser Compatibility
+
+The report renders correctly in all major browsers and is responsive for different screen sizes.
+
+### Performance and Maintainability
+
+The reporting system balances detailed information with performance:
+- Data is processed efficiently to handle large numbers of violations
+- Browser-specific violations are properly merged and attributed
+- Interactive filtering happens client-side for immediate feedback
+- Modular code organization makes maintenance straightforward
+- Clear separation between data, presentation, and interactivity
+
+This architecture ensures the report remains performant even with thousands of violations across multiple sites and browsers.
+
 ## Project Structure
 
 - `tests/`: Contains all test-related files
@@ -285,7 +364,7 @@ This report provides an overview of the accessibility issues found, including:
     - `accessibility.ts`: Main accessibility testing logic
     - `authentication.ts`: Handles site authentication
     - `loginSelectors.ts`: Manages login form selectors
-    - `reporter.ts`: Generates accessibility reports
+    - `reporter.ts`: Generates accessibility reports and processes test results
     - `siteConfiguration.ts`: Handles site configuration and environment loading
     - `index.ts`: Combines all fixtures
   - `data/`: Contains CSV files with paths to test for each site
@@ -293,5 +372,20 @@ This report provides an overview of the accessibility issues found, including:
   - `accessibility.spec.ts`: Main test specification
 - `env/`: Contains environment-specific configuration files
   - `.env.qa`, `.env.staging`, `.env.prod`: Environment-specific variables
-- `images/`: Contains images used in the README
-  - `accessibility-report-example.png`: Example of a generated accessibility report
+- `accessibility-reports/`: Contains reporting-related files and output
+  - `templates/`: EJS templates for report generation
+    - `report.ejs`: Main report template
+    - `partials/`: Modular UI components for the report
+      - `header.ejs`: Report header
+      - `summary.ejs`: Executive summary section
+      - `charts.ejs`: Data visualization components
+      - `filters.ejs`: Filtering controls
+      - `site-section.ejs`: Site-specific violation section
+      - `violation-table.ejs`: Table for displaying violations
+  - `resources/`: Static assets for the report
+    - `styles/`: CSS stylesheets
+      - `report.css`: Main report styling
+    - `scripts/`: JavaScript files
+      - `report.js`: Interactive report functionality
+  - `data/`: JSON data files for report generation
+  - `report.html`: Generated HTML report
