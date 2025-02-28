@@ -21,7 +21,7 @@ export default defineConfig({
   globalTeardown: './global-teardown',
   testDir: './tests',
   timeout: 0,
-  reporter: [['dot']],
+  reporter: [['html', { outputFolder: 'playwright-report' }], ['dot']],
   fullyParallel: true,
   reportSlowTests: null,
   use: {
