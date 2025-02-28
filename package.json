@@ -1,27 +1,26 @@
 {
   "name": "mata",
   "version": "1.0.0",
-  "description": "Automated accessibility testing tool. Features multi-site support, environment switching, custom test paths, authentication handling, configurable rulesets, and HTML reporting. Ideal for CI/CD integration and regular accessibility compliance checks.",
+  "description": "Multi-Site Accessibility Testing Automation - Accessibility testing tool for multiple websites and environments",
+  "type": "module",
   "main": "index.js",
-  "scripts": {
-    "test": "ts-node run-tests.ts"
+  "bin": {
+    "mata": "./cli/bin/mata.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+ssh://git@github.com/michiganboy/mata.git"
+  "scripts": {
+    "test": "ts-node run-tests.ts",
+    "cli": "node cli/bin/mata.js"
   },
   "keywords": [
     "Accessibility",
     "Test",
-    "Automation"
+    "Automation",
+    "a11y",
+    "WCAG"
   ],
   "author": "James Hartley",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/michiganboy/mata/issues"
-  },
-  "homepage": "https://github.com/michiganboy/mata#readme",
-  "devDependencies": {
+  "dependencies": {
     "@axe-core/playwright": "^4.9.1",
     "@playwright/test": "^1.50.1",
     "@types/ejs": "^3.1.5",
@@ -32,6 +31,7 @@
     "csv-parser": "^3.0.0",
     "dotenv": "^16.4.5",
     "ejs": "^3.1.10",
+    "fs-extra": "^11.2.0",
     "ts-node": "^10.9.2"
   }
 }
