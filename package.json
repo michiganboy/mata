@@ -2,14 +2,9 @@
   "name": "mata",
   "version": "1.0.0",
   "description": "Multi-Site Accessibility Testing Automation - Accessibility testing tool for multiple websites and environments",
-  "type": "module",
   "main": "index.js",
-  "bin": {
-    "mata": "./cli/bin/mata.js"
-  },
   "scripts": {
-    "test": "ts-node run-tests.ts",
-    "cli": "node cli/bin/mata.js"
+    "test": "ts-node run-tests.ts"
   },
   "keywords": [
     "Accessibility",
